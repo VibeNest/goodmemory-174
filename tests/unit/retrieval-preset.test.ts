@@ -118,6 +118,34 @@ describe("resolveGoodMemoryRetrievalRuntime with preset recommended", () => {
     });
   });
 
+  it("preserves an explicit dynamic-budget floor in the experimental preset", () => {
+    const resolved = resolve({
+      retrieval: {
+        generalizedFusionMinRelativeStrength: 0.35,
+        preset: "recommended",
+      },
+    });
+
+    expect(resolved.retrieval.generalizedFusion).toEqual({
+      maxCandidates: RECOMMENDED_GENERALIZED_FUSION_MAX_CANDIDATES,
+      maxTotalFacts: RECOMMENDED_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
+      minRelativeStrength: 0.35,
+    });
+
+    const reranking = resolve({
+      providerRerankerConfigured: true,
+      retrieval: {
+        generalizedFusionMinRelativeStrength: 0.35,
+        preset: "recommended",
+      },
+    });
+    expect(reranking.retrieval.rerankGeneralizedFusion).toEqual({
+      maxCandidates: RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_CANDIDATES,
+      maxTotalFacts: RECOMMENDED_RERANK_GENERALIZED_FUSION_MAX_TOTAL_FACTS,
+      minRelativeStrength: 0.35,
+    });
+  });
+
   it("widens only the first-party provider reranker lane", () => {
     const resolved = resolve({
       embeddingEnabled: true,

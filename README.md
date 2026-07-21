@@ -118,24 +118,27 @@ evidence rather than public benchmark claims.
 
 ### Versioned internal evidence
 
-These rows remain reproducible evidence for the disclosed package version and
-runtime profile. They are not current-production claims for `v0.6.0`.
+These rows are versioned attestations with tracked source fingerprints for the
+disclosed package version and runtime profile. Reproduction also requires the
+referenced raw artifacts, which are not all stored in the Git tree. They are
+not current-production claims for `v0.6.0`.
 
 <!-- historical-evidence-table:start -->
 | Benchmark | Primary metric | GoodMemory result | Baseline / reference | Claim declaration |
 |---|---|---:|---:|---|
-| LongMemEval full 500 | strict: judge-free deterministic subset · comparable: official LongMemEval judge protocol | strict **0.720** (360/500) · official-protocol **0.888** (444/500), `goodmemory-rules-only` | no-memory 0.068; current Mem0 harness: 94.4 Top200 / 94.8 Top50 (different stack and budget) | [longmemeval.json](./benchmark-claims/longmemeval.json) |
+| LongMemEval full 500 | strict: judge-free deterministic subset · diagnostic: official-prompt-compatible LongMemEval judge | strict **0.720** (360/500) · prompt-compatible **0.888** (444/500), `goodmemory-rules-only` | no-memory 0.068; current Mem0 harness: 94.4 Top200 / 94.8 Top50 (different stack and budget) | [longmemeval.json](./benchmark-claims/longmemeval.json) |
 | ImplicitMemBench Full-300 | stored-answer cross-version judge rescore | **0.691** (207.35/300), gpt-5.4 judge over gpt-5.5 answers, sourceAnswersUnchanged | upstream-chat baseline **0.400** (120/300); reference line 0.66 | [implicitmembench.json](./benchmark-claims/implicitmembench.json) |
 <!-- historical-evidence-table:end -->
 
 Where both are available, a row reports two tracks. The
 **strict** track is deterministic or judge-free — a hard lower bound no LLM
-judge can inflate. The **comparable** track re-judges the *same stored answers*
-(not regenerated) under each benchmark's official or industry-standard judge
-protocol, verbatim, so the number sits on the same scale as published
-competitor results. The gap between the tracks is quantified judge leniency,
-disclosed instead of hidden. Every per-protocol detail is recorded in the
-linked declarations.
+judge can inflate. The second track re-judges the *same stored answers* (not
+regenerated) under a benchmark-source or industry-standard prompt. Numerical
+comparability is claimed only when the pinned evaluator model and remaining
+benchmark configuration also match. LongMemEval's gpt-5.4/gpt-5.5 diagnostics
+are outside the pinned evaluator model zoo and are therefore
+prompt-compatible, not directly comparable to published official scores.
+Every per-protocol detail is recorded in the linked declarations.
 
 The historical LongMemEval strict result is judge-free, replacing an earlier
 internal with-judge number (0.908) that is superseded and not claimable. A case counts as correct
@@ -197,7 +200,9 @@ fetched at eval time, never vendored.
 ### Internal diagnostics (not public claims)
 
 LongMemEval's Phase 72 eval-only verifier chain reaches 0.720 judge-free and
-0.924 under an independent official-protocol judge, but it is not a production
+0.924 under an independent gpt-5.5 official-prompt-compatible judge. That model
+is outside the pinned LongMemEval evaluator model zoo, so the result is not
+directly comparable to published official scores; it is also not a production
 runtime profile. ImplicitMemBench's explicit retry-merged check reaches
 0.6923666667 with zero failures, but it is not a replacement monolithic fresh
 Full-300 run. Both therefore remain outside the current-claims table. The

@@ -78,7 +78,8 @@
   "metrics": {
     "primary": "Conflict Resolution answer accuracy using deterministic upstream match-mode scoring; Test-Time Learning is co-reported under the same judge-free boundary.",
     "score": 0.958904109589041,
-    "baseline": 0
+    "baseline": 0,
+    "metricDirection": "higher-is-better"
   },
   "coverage": {
     "complete": true,

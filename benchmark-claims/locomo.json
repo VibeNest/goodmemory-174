@@ -84,7 +84,8 @@
   "metrics": {
     "primary": "Independent industry-comparable LoCoMo judge-protocol accuracy over the full 1540-question non-adversarial convention.",
     "score": 0.8707792207792208,
-    "baseline": 0.6247
+    "baseline": 0.0045,
+    "metricDirection": "higher-is-better"
   },
   "coverage": {
     "complete": true,

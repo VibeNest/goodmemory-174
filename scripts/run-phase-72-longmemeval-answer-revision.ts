@@ -999,7 +999,7 @@ export async function runPhase72LongMemEvalAnswerRevision(
     generatedBy: GENERATED_BY,
     judge: models.judge,
     reportScoreBoundary:
-      "All rows are deterministically rescored after revision; use the independent official rescore for protocol comparability.",
+      "All rows are deterministically rescored after revision; use an independent pinned-prompt-compatible rescore and require a full evaluator-identity match before claiming published-score comparability.",
     route,
     routedCases: jobs.length,
     runId: options.runId,

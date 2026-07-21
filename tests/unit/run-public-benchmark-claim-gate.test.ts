@@ -17,6 +17,50 @@ import {
   validateClaimReport,
 } from "../../scripts/run-public-benchmark-claim-gate";
 
+const FULL_COMMIT = "0123456789abcdef0123456789abcdef01234567";
+const SOURCE_SHA256 = "a".repeat(64);
+
+function historicalProjection(
+  overrides: Record<string, unknown> = {},
+  benchmark = "LongMemEval",
+): Record<string, unknown> {
+  return {
+    artifactKind: "tracked-historical-evidence-projection",
+    benchmark,
+    generatedBy: "scripts/project-historical-evidence.ts",
+    runIdentity: {
+      commit: FULL_COMMIT,
+      runId: "run-longmemeval-full500",
+    },
+    schemaVersion: 1,
+    sourceArtifacts: [
+      {
+        bytes: 610477,
+        path: "reports/eval/longmemeval/report.json",
+        sha256: SOURCE_SHA256,
+      },
+    ],
+    ...overrides,
+  };
+}
+
+function historicalProjectionAssertions(benchmark = "LongMemEval") {
+  return [
+    { equals: "tracked-historical-evidence-projection", path: ["artifactKind"] },
+    { equals: benchmark, path: ["benchmark"] },
+    { equals: "scripts/project-historical-evidence.ts", path: ["generatedBy"] },
+    { equals: 1, path: ["schemaVersion"] },
+    { equals: 610477, path: ["sourceArtifacts", 0, "bytes"] },
+    {
+      equals: "reports/eval/longmemeval/report.json",
+      path: ["sourceArtifacts", 0, "path"],
+    },
+    { equals: SOURCE_SHA256, path: ["sourceArtifacts", 0, "sha256"] },
+    { equals: FULL_COMMIT, path: ["runIdentity", "commit"] },
+    { equals: "run-longmemeval-full500", path: ["runIdentity", "runId"] },
+  ];
+}
+
 function cleanReport(overrides: Partial<BenchmarkClaimReport> = {}): BenchmarkClaimReport {
   return {
     benchmark: "Example",
@@ -39,13 +83,23 @@ function cleanReport(overrides: Partial<BenchmarkClaimReport> = {}): BenchmarkCl
         },
       ],
     },
-    metrics: { baseline: 0.5, primary: "accuracy", score: 0.8 },
+    metrics: {
+      baseline: 0.5,
+      metricDirection: "higher-is-better",
+      primary: "accuracy",
+      score: 0.8,
+    },
     model: { answerModel: "model-a", judgeModel: null, sameModelJudge: false },
     publicClaim: {
       readmeDisclosureFragments: ["disclosed"],
       readmeRequiredFragments: ["x"],
     },
-    run: { command: "eval:example", commit: "abc1234", executionFailures: 0, packageVersion: "0.3.5" },
+    run: {
+      command: "eval:example",
+      commit: FULL_COMMIT,
+      executionFailures: 0,
+      packageVersion: "0.3.5",
+    },
     status: "candidate_public_claim",
     ...overrides,
   };
@@ -58,12 +112,76 @@ describe("claim boundary rule engine", () => {
     expect(verdict.blockers).toEqual([]);
   });
 
-  it("blocks a same-model judge", () => {
+  it("derives and blocks a same-model judge even when the declaration denies it", () => {
     const verdict = evaluateClaimBoundary(
-      cleanReport({ model: { answerModel: "gpt-5.5", judgeModel: "gpt-5.5", sameModelJudge: true } }),
+      cleanReport({ model: { answerModel: "gpt-5.5", judgeModel: "gpt-5.5", sameModelJudge: false } }),
     );
     expect(verdict.publicClaimAllowed).toBe(false);
     expect(verdict.blockers.join(" ")).toContain("same-model judge");
+  });
+
+  it("uses provider-qualified model identity without trusting gateway spelling", () => {
+    const verdict = evaluateClaimBoundary(
+      cleanReport({
+        model: {
+          answerGateway: "https://gateway.example/v1/",
+          answerModel: "openai/gpt-5.5",
+          answerProvider: "OpenAI",
+          judgeGateway: "https://gateway.example/v1",
+          judgeModel: "gpt-5.5",
+          judgeProvider: "openai",
+          sameModelJudge: false,
+        },
+      }),
+    );
+    expect(verdict.publicClaimAllowed).toBe(false);
+    expect(verdict.blockers.join(" ")).toContain("same-model judge");
+  });
+
+  it("requires a full commit and a directionally better score", () => {
+    const shortCommit = evaluateClaimBoundary(
+      cleanReport({ run: { ...cleanReport().run, commit: "abc1234" } }),
+    );
+    expect(shortCommit.publicClaimAllowed).toBe(false);
+    expect(shortCommit.blockers.join(" ")).toContain("40-character hexadecimal");
+
+    const regressedAccuracy = evaluateClaimBoundary(
+      cleanReport({
+        metrics: {
+          baseline: 0.8,
+          metricDirection: "higher-is-better",
+          primary: "accuracy",
+          score: 0.79,
+        },
+      }),
+    );
+    expect(regressedAccuracy.publicClaimAllowed).toBe(false);
+    expect(regressedAccuracy.blockers.join(" ")).toContain("must be greater than baseline");
+
+    const regressedLatency = evaluateClaimBoundary(
+      cleanReport({
+        metrics: {
+          baseline: 100,
+          metricDirection: "lower-is-better",
+          primary: "p95 latency",
+          score: 101,
+        },
+      }),
+    );
+    expect(regressedLatency.publicClaimAllowed).toBe(false);
+    expect(regressedLatency.blockers.join(" ")).toContain("must be less than baseline");
+    expect(
+      evaluateClaimBoundary(
+        cleanReport({
+          metrics: {
+            baseline: 100,
+            metricDirection: "lower-is-better",
+            primary: "p95 latency",
+            score: 99,
+          },
+        }),
+      ).publicClaimAllowed,
+    ).toBe(true);
   });
 
   it("blocks profiles that users cannot run from the public package", () => {
@@ -102,7 +220,14 @@ describe("claim boundary rule engine", () => {
         .publicClaimAllowed,
     ).toBe(false);
     expect(
-      evaluateClaimBoundary(cleanReport({ metrics: { baseline: null, primary: "accuracy", score: 0.8 } }))
+      evaluateClaimBoundary(cleanReport({
+        metrics: {
+          baseline: null,
+          metricDirection: "higher-is-better",
+          primary: "accuracy",
+          score: 0.8,
+        },
+      }))
         .publicClaimAllowed,
     ).toBe(false);
     expect(
@@ -125,6 +250,33 @@ describe("claim report schema validation", () => {
     const bad = validateClaimReport({ benchmark: "X" });
     expect(bad.valid).toBe(false);
     expect(bad.errors.length).toBeGreaterThan(0);
+  });
+
+  it("requires historical claims to depend on tracked evidence projections", () => {
+    const report = cleanReport({
+      claimBoundary: { publicClaimAllowed: false, reason: "historical only" },
+      comparison: {
+        ...cleanReport().comparison,
+        availability: "historical",
+      },
+      status: "internal_evidence",
+    });
+    const invalid = validateClaimReport(report);
+    expect(invalid.valid).toBe(false);
+    expect(invalid.errors).toContain(
+      "historical evidence artifacts must live under benchmark-claims/evidence",
+    );
+
+    expect(validateClaimReport({
+      ...report,
+      evidence: {
+        artifacts: [{
+          assertions: historicalProjectionAssertions("Example"),
+          description: "tracked projection",
+          path: "benchmark-claims/evidence/example.json",
+        }],
+      },
+    }).valid).toBe(true);
   });
 
   it("requires current comparison provenance and profile availability", () => {
@@ -155,8 +307,19 @@ describe("claim report schema validation", () => {
       ...cleanReport(),
       coverage: { complete: "true", note: " full coverage " },
       dataset: { license: " MIT", source: "", vendored: "false" },
-      metrics: { baseline: "0.5", primary: " accuracy ", score: Number.NaN },
-      model: { answerModel: "", judgeModel: " gpt-judge ", sameModelJudge: "false" },
+      metrics: {
+        baseline: "0.5",
+        metricDirection: "sideways",
+        primary: " accuracy ",
+        score: Number.NaN,
+      },
+      model: {
+        answerGateway: " gateway ",
+        answerModel: "",
+        answerProvider: " provider ",
+        judgeModel: " gpt-judge ",
+        sameModelJudge: "false",
+      },
       run: { command: "", commit: " abc1234", executionFailures: 1.5, packageVersion: null },
     });
     expect(malformed.valid).toBe(false);
@@ -179,7 +342,23 @@ describe("claim report schema validation", () => {
     );
     expect(malformed.errors).toContain("model.sameModelJudge must be a boolean");
     expect(malformed.errors).toContain(
-      "metrics.baseline (finite number), primary (non-empty unpadded string), and score (finite number) are required",
+      "metrics.baseline and score must be finite numbers, primary must be a non-empty unpadded string, and metricDirection must be higher-is-better or lower-is-better",
+    );
+    expect(malformed.errors).toContain(
+      "model.answerProvider must be a non-empty unpadded string when present",
+    );
+    expect(malformed.errors).toContain(
+      "model.answerGateway must be a non-empty unpadded string when present",
+    );
+  });
+
+  it("requires a complete 40-character hexadecimal commit", () => {
+    const invalid = validateClaimReport(
+      cleanReport({ run: { ...cleanReport().run, commit: "abc1234" } }),
+    );
+    expect(invalid.valid).toBe(false);
+    expect(invalid.errors).toContain(
+      "run.commit must be a complete 40-character hexadecimal commit",
     );
   });
 
@@ -275,6 +454,26 @@ describe("claim report schema validation", () => {
     expect(emptyAssertions.valid).toBe(false);
     expect(emptyAssertions.errors).toContain(
       "evidence.artifacts[0].assertions must be a non-empty array for JSON artifacts",
+    );
+  });
+
+  it("rejects historical declarations whose assertions do not bind projection provenance", () => {
+    const report = cleanReport({
+      claimBoundary: { publicClaimAllowed: false, reason: "historical only" },
+      comparison: { ...cleanReport().comparison, availability: "historical" },
+      evidence: {
+        artifacts: [{
+          assertions: [{ equals: true, path: ["ok"] }],
+          description: "unbound projection",
+          path: "benchmark-claims/evidence/example.json",
+        }],
+      },
+      status: "internal_evidence",
+    });
+    const invalid = validateClaimReport(report);
+    expect(invalid.valid).toBe(false);
+    expect(invalid.errors.join(" ")).toContain(
+      "historical projection assertions must bind artifactKind, benchmark, generatedBy, schemaVersion, sourceArtifacts path/bytes/sha256, and runIdentity or scorerIdentity",
     );
   });
 });
@@ -492,6 +691,69 @@ describe("claim gate report", () => {
       }),
     });
     expect(missingPath.join(" ")).toContain("path summary.executionFailures was not found");
+  });
+
+  it("validates historical projections and rejects arbitrary ok JSON", async () => {
+    const report = cleanReport({
+      benchmark: "LongMemEval",
+      claimBoundary: { publicClaimAllowed: false, reason: "historical only" },
+      comparison: { ...cleanReport().comparison, availability: "historical" },
+      evidence: {
+        artifacts: [{
+          assertions: historicalProjectionAssertions(),
+          description: "tracked projection",
+          path: "benchmark-claims/evidence/longmemeval-historical.json",
+        }],
+      },
+      status: "internal_evidence",
+    });
+    const valid = await checkClaimEvidenceArtifacts({
+      file: "longmemeval.json",
+      readFile: async () => JSON.stringify(historicalProjection()),
+      repoRoot: "/repo",
+      report,
+    });
+    expect(valid).toEqual([]);
+
+    const arbitrary = await checkClaimEvidenceArtifacts({
+      file: "longmemeval.json",
+      readFile: async () => JSON.stringify({ ok: true }),
+      repoRoot: "/repo",
+      report,
+    });
+    expect(arbitrary.join(" ")).toContain(
+      "historical projection artifactKind must be tracked-historical-evidence-projection",
+    );
+    expect(arbitrary.join(" ")).toContain("historical projection generatedBy");
+    expect(arbitrary.join(" ")).toContain("historical projection sourceArtifacts");
+    expect(arbitrary.join(" ")).toContain("historical projection requires runIdentity or scorerIdentity");
+  });
+
+  it("requires historical source bytes and identity fields to be assertion-bound", async () => {
+    const report = cleanReport({
+      benchmark: "LongMemEval",
+      claimBoundary: { publicClaimAllowed: false, reason: "historical only" },
+      comparison: { ...cleanReport().comparison, availability: "historical" },
+      evidence: {
+        artifacts: [{
+          assertions: historicalProjectionAssertions().filter(
+            ({ path }) => path.join(".") !== "sourceArtifacts.0.bytes",
+          ),
+          description: "tracked projection",
+          path: "benchmark-claims/evidence/longmemeval-historical.json",
+        }],
+      },
+      status: "internal_evidence",
+    });
+    const errors = await checkClaimEvidenceArtifacts({
+      file: "longmemeval.json",
+      readFile: async () => JSON.stringify(historicalProjection()),
+      repoRoot: "/repo",
+      report,
+    });
+    expect(errors.join(" ")).toContain(
+      "historical projection field sourceArtifacts[0].bytes must be bound by an evidence assertion",
+    );
   });
 });
 
@@ -763,6 +1025,13 @@ describe("README historical-evidence table check", () => {
     comparison: {
       ...cleanReport().comparison,
       availability: "historical",
+    },
+    evidence: {
+      artifacts: [{
+        assertions: historicalProjectionAssertions(),
+        description: "tracked projection",
+        path: "benchmark-claims/evidence/longmemeval-historical.json",
+      }],
     },
     status: "internal_evidence",
   });

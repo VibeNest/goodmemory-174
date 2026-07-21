@@ -143,6 +143,10 @@ export interface GoodMemoryRetrievalConfig {
   preset?: GoodMemoryRetrievalPresetId;
   // Experimental E2 ablation hook. Omit to run all five fusion channels.
   generalizedFusionChannels?: readonly GeneralizedFusionChannel[];
+  // Experimental dynamic-budget floor for generalized fusion: candidates whose
+  // evidence strength falls below this fraction of the strongest candidate are
+  // trimmed before selection. Omit to keep the fixed top-N cut (no trimming).
+  generalizedFusionMinRelativeStrength?: number;
   // Experimental Phase 74 execution path. When enabled, the query-derived
   // RecallPlan drives retrieval, decomposition, and iterative recall unless a
   // call supplies an explicit override. Off uses the unplanned baseline until
@@ -210,6 +214,11 @@ export interface RecallInput {
   includeEvidence?: boolean;
   ignoreMemory?: boolean;
   locale?: string;
+  // Optional per-call temporal anchor (ISO-8601). Anchors plan resolution,
+  // temporal claim selection, document visibility, and freshness for this
+  // recall instead of the runtime clock — e.g. "answer as of the question
+  // date". Invalid values fall back to the runtime clock.
+  referenceTime?: string;
 }
 
 export interface RecallResult {

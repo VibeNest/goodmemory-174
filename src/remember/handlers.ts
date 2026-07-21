@@ -25,6 +25,7 @@ import {
   enrichDuplicatePreference,
   enrichDuplicateReference,
   getProfileWriteReason,
+  resolveCandidateObservedAt,
   resolveReferenceSubject,
 } from "./builders";
 import { EVIDENCE_COLLECTION, SOURCE_MESSAGES_COLLECTION } from "../evidence/contracts";
@@ -533,6 +534,7 @@ export async function writeRememberCandidate(input: {
       context.createId(),
       timestamp,
       context.resolvedLanguage.locale,
+      resolveCandidateObservedAt(candidate, context.input.messages),
     );
     const factEmbeddingWrite = buildFactEmbeddingWrite(fact);
     const supersededFactVector =

@@ -151,6 +151,53 @@ describe("generalized recall fusion", () => {
     ]);
   });
 
+  it("drops an entity alias that the scope corpus also uses as a common word", () => {
+    const result = fuseGeneralizedRecallCandidates({
+      query: "What helps you relax in the evenings?",
+      documents: [
+        document({
+          id: "doc-weak",
+          sourceMemoryId: "fact-weak",
+          // Sentence-initial capitalization made "Evenings" an entity mention,
+          // but the corpus below uses the same word lowercase — a common word,
+          // not a name.
+          text: "Evenings include a grocery run.",
+          entityKeys: ["evenings"],
+        }),
+        document({
+          id: "doc-strong",
+          sourceMemoryId: "fact-strong",
+          text: "A cup of tea helps Marco relax during quiet evenings.",
+          entityKeys: ["marco"],
+        }),
+      ],
+      entities: [
+        entity({
+          key: "evenings",
+          aliases: ["Evenings"],
+          memoryIds: ["facts:fact-weak"],
+        }),
+        entity({
+          key: "marco",
+          aliases: ["Marco"],
+          memoryIds: ["facts:fact-strong"],
+        }),
+      ],
+      maxCandidates: 8,
+    });
+
+    const weak = result.rankedCandidates.find(
+      (candidate) => candidate.sourceMemoryId === "fact-weak",
+    );
+    const strong = result.rankedCandidates.find(
+      (candidate) => candidate.sourceMemoryId === "fact-strong",
+    );
+    // The common-word entity coincidence must not grant an entity channel.
+    expect(weak?.channels.entity).toBeUndefined();
+    // The true lexical match outranks the capitalization artifact.
+    expect(strong?.score ?? 0).toBeGreaterThan(weak?.score ?? 0);
+  });
+
   it("uses lexical, dense, and direct entity adjacency as independent RRF channels", () => {
     const result = fuseGeneralizedRecallCandidates({
       query: "What changed for Atlas?",

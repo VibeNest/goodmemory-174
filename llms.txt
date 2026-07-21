@@ -87,7 +87,7 @@ Current `v0.6.0` public-opt-in claims:
 
 Versioned internal evidence, not current-production claims:
 
-- [LongMemEval full 500](https://github.com/hjqcan/GoodMemory/blob/main/benchmark-claims/longmemeval.json): historical strict 0.720 and official-protocol 0.888.
+- [LongMemEval full 500](https://github.com/hjqcan/GoodMemory/blob/main/benchmark-claims/longmemeval.json): historical strict 0.720 and official-prompt-compatible 0.888; the latter is not directly comparable to published official scores because its gpt-5.4 judge is outside the pinned evaluator model zoo.
 - [ImplicitMemBench Full-300](https://github.com/hjqcan/GoodMemory/blob/main/benchmark-claims/implicitmembench.json): historical stored-answer 0.691 versus baseline 0.400.
 
 ## Machine-readable

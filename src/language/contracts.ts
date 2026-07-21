@@ -18,6 +18,9 @@ export interface LanguageAdapter {
     text: string,
     options?: {
       excludeStopwords?: boolean;
+      // Adapter-specific floor for token length. Adapters that do not
+      // distinguish (CJK bigrams, generic) may ignore it.
+      minTokenLength?: number;
     },
   ): string[];
   extractCandidates(input: LanguageCandidateExtractionInput): MemoryCandidate[];
@@ -66,6 +69,7 @@ export interface LanguageService {
     context: ResolvedLanguageContext | string,
     options?: {
       excludeStopwords?: boolean;
+      minTokenLength?: number;
     },
   ): string[];
   splitClauses(

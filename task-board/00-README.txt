@@ -77,7 +77,7 @@ Current Transition
   evidence is under
   `reports/quality-gates/phase-71/run-20260711-admin-inspector/`.
 - Phase 72 is complete. Current public-opt-in claims are LoCoMo, BEAM, and MemoryAgentBench.
-  LongMemEval and ImplicitMemBench remain versioned internal evidence. LongMemEval closes its internal gates at 0.720 judge-free and 0.924 under the independent `gpt-5.5` official protocol. LoCoMo closes at
+  LongMemEval and ImplicitMemBench remain versioned internal evidence. LongMemEval closes its internal gates at 0.720 judge-free and 0.924 under an independent `gpt-5.5` official-prompt-compatible judge; because gpt-5.5 is outside the pinned LongMemEval evaluator model zoo, 0.924 is not directly comparable to published official scores. LoCoMo closes at
   0.6298701299 strict, 0.8707792208 official, and 59/96 = 0.6145833333
   open-domain, all with zero execution/judge failures. BEAM 100K closes at 0.7651 unified, 0.620 strict, and 0.8276 recall over all 400 questions and
   1051 rubric items, with zero execution/judge failures and all 148 narrow

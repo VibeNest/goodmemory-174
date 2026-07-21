@@ -68,6 +68,260 @@ function buildCandidate(): ClassifiedCandidate {
 }
 
 describe("remember claim source provenance", () => {
+  it("stamps facts and fallback claims with source-message observed time", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const structured = buildCandidate();
+    const unstructured: ClassifiedCandidate = {
+      id: "candidate-2",
+      kindHint: "fact",
+      memoryType: "fact",
+      decision: "write",
+      score: 1,
+      explicitness: "explicit",
+      content: "The rollout is waiting on the partner audit.",
+      sourceMessageIndex: 1,
+      sourceRole: "user",
+      extractorIds: ["deterministic"],
+      metadata: { category: "project" },
+    };
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore: rawStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+      // The preset turns on projection write-through, so the deterministic
+      // fallback claim is synchronized at write time like the benchmark
+      // profiles.
+      retrieval: { preset: "recommended" },
+      testing: {
+        extractor: {
+          async extract() {
+            return {
+              candidates: [structured, unstructured],
+              ignoredMessageCount: 0,
+            };
+          },
+        },
+        now: () => new Date(NOW),
+      },
+    });
+
+    await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Atlas uses the partner API.",
+          observedAt: "2026-05-03T10:00:00.000Z",
+        },
+        {
+          role: "user",
+          content: "The rollout is waiting on the partner audit.",
+          observedAt: "2026-05-04T10:00:00.000Z",
+        },
+      ],
+    });
+
+    const facts = await rawStore.query<{
+      id: string;
+      content: string;
+      observedAt?: string;
+    }>("facts", {});
+    const structuredFact = facts.find(
+      (fact) => fact.content === "Atlas uses the partner API.",
+    );
+    const unstructuredFact = facts.find(
+      (fact) => fact.content === "The rollout is waiting on the partner audit.",
+    );
+    // Earliest cited message wins for multi-message claims.
+    expect(structuredFact?.observedAt).toBe("2026-05-03T10:00:00.000Z");
+    expect(unstructuredFact?.observedAt).toBe("2026-05-04T10:00:00.000Z");
+
+    const claims = await rawStore.query<ClaimProjection>(
+      CLAIM_PROJECTIONS_COLLECTION,
+      {},
+    );
+    const fallbackClaim = claims.find(
+      (claim) => claim.sourceMemoryId === unstructuredFact?.id,
+    );
+    // The deterministic fallback claim must anchor to the session observation
+    // time, not the ingestion wall clock.
+    expect(fallbackClaim?.observedAt).toBe("2026-05-04T10:00:00.000Z");
+  });
+
+  it("closes the validity of an older claim in the same subject-predicate slot", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const residenceCandidate = (
+      id: string,
+      city: string,
+    ): ClassifiedCandidate => ({
+      id,
+      kindHint: "fact",
+      memoryType: "fact",
+      decision: "write",
+      score: 1,
+      explicitness: "explicit",
+      content: `Marco lives in ${city}.`,
+      sourceMessageIndex: 0,
+      sourceRole: "user",
+      extractorIds: ["atomic-extractor-v2"],
+      metadata: {
+        category: "personal",
+        subject: "Marco",
+        claim: {
+          predicateKey: "person.residence",
+          objectText: city,
+          polarity: "positive",
+          modality: "asserted",
+        },
+      },
+    });
+    const batches: ClassifiedCandidate[][] = [
+      [residenceCandidate("candidate-paris", "Paris")],
+      [residenceCandidate("candidate-lisbon", "Lisbon")],
+    ];
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore: rawStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+      retrieval: { preset: "recommended" },
+      testing: {
+        extractor: {
+          async extract() {
+            return {
+              candidates: batches.shift() ?? [],
+              ignoredMessageCount: 0,
+            };
+          },
+        },
+        now: () => new Date(NOW),
+      },
+    });
+
+    await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Marco lives in Paris.",
+          observedAt: "2026-03-01T10:00:00.000Z",
+        },
+      ],
+    });
+    await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "Marco lives in Lisbon.",
+          observedAt: "2026-06-01T10:00:00.000Z",
+        },
+      ],
+    });
+
+    const claims = await rawStore.query<ClaimProjection>(
+      CLAIM_PROJECTIONS_COLLECTION,
+      {},
+    );
+    const slotClaims = claims.filter(
+      (claim) => claim.predicateKey === "person.residence",
+    );
+    expect(slotClaims).toHaveLength(2);
+    const paris = slotClaims.find((claim) => claim.objectText === "Paris");
+    const lisbon = slotClaims.find((claim) => claim.objectText === "Lisbon");
+    // Bi-temporal soft invalidation: the older value's validity closes at the
+    // newer observation; nothing is deleted from history.
+    expect(paris?.validUntil).toBe("2026-06-01T10:00:00.000Z");
+    expect(lisbon?.validUntil).toBeUndefined();
+
+    const statuses = await rawStore.query<ClaimProjectionStatus>(
+      CLAIM_PROJECTION_STATUS_COLLECTION,
+      {},
+    );
+    const parisStatus = statuses.find(
+      (status) => status.sourceMemoryId === paris?.sourceMemoryId,
+    );
+    expect(parisStatus?.claimIds).toEqual([paris?.id ?? ""]);
+  });
+
+  it("never closes claims in the generic deterministic fact namespace", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const blockerCandidate = (
+      id: string,
+      content: string,
+    ): ClassifiedCandidate => ({
+      id,
+      kindHint: "fact",
+      memoryType: "fact",
+      decision: "write",
+      score: 1,
+      explicitness: "explicit",
+      content,
+      sourceMessageIndex: 0,
+      sourceRole: "user",
+      extractorIds: ["deterministic"],
+      metadata: { category: "project", factKind: "blocker" },
+    });
+    const batches: ClassifiedCandidate[][] = [
+      [blockerCandidate("candidate-b1", "The rollout is blocked on QA signoff.")],
+      [blockerCandidate("candidate-b2", "The rollout is blocked on vendor approval.")],
+    ];
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore: rawStore,
+        sessionStore: createInMemorySessionStore(),
+      },
+      retrieval: { preset: "recommended" },
+      testing: {
+        extractor: {
+          async extract() {
+            return {
+              candidates: batches.shift() ?? [],
+              ignoredMessageCount: 0,
+            };
+          },
+        },
+        now: () => new Date(NOW),
+      },
+    });
+
+    await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "The rollout is blocked on QA signoff.",
+          observedAt: "2026-03-01T10:00:00.000Z",
+        },
+      ],
+    });
+    await memory.remember({
+      scope,
+      messages: [
+        {
+          role: "user",
+          content: "The rollout is blocked on vendor approval.",
+          observedAt: "2026-06-01T10:00:00.000Z",
+        },
+      ],
+    });
+
+    const claims = await rawStore.query<ClaimProjection>(
+      CLAIM_PROJECTIONS_COLLECTION,
+      {},
+    );
+    const blockerClaims = claims.filter(
+      (claim) => claim.predicateKey === "fact.blocker",
+    );
+    // Multiple blockers legitimately coexist: the generic namespace has
+    // unknown cardinality, so structural supersession must not fire.
+    expect(blockerClaims).toHaveLength(2);
+    for (const claim of blockerClaims) {
+      expect(claim.validUntil).toBeUndefined();
+    }
+  });
+
   it("rejects a candidate when any cited source message is annotated remember-never", async () => {
     const rawStore = createInMemoryDocumentStore();
     const memory = createGoodMemory({

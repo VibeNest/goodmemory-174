@@ -183,6 +183,54 @@ const TOKEN_STOPWORDS = new Set([
   "using",
   "current",
   "please",
+  // Short function words: the token filter keeps tokens down to length 2 so
+  // acronyms and codes ("RL", "SF", "v2") stay searchable; these carry no
+  // retrieval signal and are excluded wherever excludeStopwords is requested.
+  "am",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "but",
+  "by",
+  "did",
+  "do",
+  "for",
+  "had",
+  "has",
+  "he",
+  "her",
+  "him",
+  "his",
+  "how",
+  "if",
+  "in",
+  "is",
+  "it",
+  "its",
+  "me",
+  "my",
+  "no",
+  "nor",
+  "not",
+  "of",
+  "on",
+  "or",
+  "our",
+  "she",
+  "so",
+  "the",
+  "to",
+  "too",
+  "up",
+  "us",
+  "was",
+  "we",
+  "who",
+  "why",
+  "you",
 ]);
 const ENGLISH_SUBJECT_TAIL_PATTERN =
   /\b(?:and|but)\s+(?:driving|tracking|keeping|handling|reviewing|planning|shipping|rolling|migrating|preparing|finalizing|waiting|coordinating|owning)\b.*$/i;
@@ -1463,8 +1511,19 @@ export function createEnglishLanguageAdapter(): LanguageAdapter {
     normalizeForEquality(text: string): string {
       return normalizeUnicodeForEquality(text);
     },
-    tokenize(text: string, options?: { excludeStopwords?: boolean }): string[] {
-      const tokens = tokenizeUnicodeText(text, "en-US").filter((token) => token.length >= 4);
+    tokenize(
+      text: string,
+      options?: { excludeStopwords?: boolean; minTokenLength?: number },
+    ): string[] {
+      // Default floor of 2 keeps discriminative short tokens (acronyms, codes,
+      // "AI", "RL") that the previous >= 4 floor silently dropped from the
+      // lexical index; the expanded stopword list handles short function
+      // words. Callers whose signal degrades with short tokens (the naive
+      // Jaccard overlap) pass an explicit higher floor.
+      const minTokenLength = options?.minTokenLength ?? 2;
+      const tokens = tokenizeUnicodeText(text, "en-US").filter(
+        (token) => token.length >= minTokenLength,
+      );
       if (options?.excludeStopwords) {
         return tokens.filter((token) => !TOKEN_STOPWORDS.has(token));
       }

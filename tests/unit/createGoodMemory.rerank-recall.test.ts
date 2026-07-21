@@ -177,7 +177,10 @@ describe("GoodMemory.recall reranker adapter", () => {
         sessionStore: createInMemorySessionStore(),
         recallPlanner: {
           async plan() {
-            return { facets: ["needle facet"] };
+            return {
+              entities: ["Needle"],
+              facets: ["Needle facet"],
+            };
           },
         },
         reranker: {
@@ -221,7 +224,7 @@ describe("GoodMemory.recall reranker adapter", () => {
 
     const result = await memory.recall({
       scope,
-      query: "overview alpha",
+      query: "current overview alpha",
       strategy: "hybrid",
     });
 
@@ -233,6 +236,85 @@ describe("GoodMemory.recall reranker adapter", () => {
         rankAfter: 1,
       }),
     );
+    expect(result.facts[0]?.id).toBe("supplementary-target");
+  });
+
+  it("keeps primary top evidence in the global reranker pool when facets repeat distractors", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    let candidateIds: string[] = [];
+    const memory = createGoodMemory({
+      adapters: {
+        documentStore,
+        sessionStore: createInMemorySessionStore(),
+        recallPlanner: {
+          async plan() {
+            return {
+              entities: ["Needle"],
+              facets: ["Needle facet one", "Needle facet two"],
+            };
+          },
+        },
+        reranker: {
+          async rerank({ documents }) {
+            candidateIds = documents.map(({ id }) => id);
+            return documents.map(({ id }) => ({
+              id,
+              score: id === "supplementary-target" ? 1 : 0,
+            }));
+          },
+        },
+      },
+      retrieval: {
+        preset: "recommended",
+        recallPlanExecution: true,
+      },
+      testing: { now: () => new Date("2026-01-02T00:00:00.000Z") },
+    });
+
+    for (let index = 1; index <= 12; index += 1) {
+      const id = `primary-${String(index).padStart(2, "0")}`;
+      await documentStore.set("facts", id, createFactMemory({
+        id,
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        category: "project",
+        content: `primary anchor evidence ${index}`,
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }));
+    }
+    for (let index = 1; index <= 40; index += 1) {
+      const id = index === 1
+        ? "supplementary-target"
+        : `supplementary-${String(index).padStart(2, "0")}`;
+      await documentStore.set("facts", id, createFactMemory({
+        id,
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        category: "project",
+        content: index === 1
+          ? "Needle facet one Needle facet two"
+          : `Needle facet one facet two repeated distractor ${index}`,
+        source: { method: "explicit", extractedAt: "2026-01-01T00:00:00.000Z" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      }));
+    }
+
+    const result = await memory.recall({
+      scope,
+      query: "current primary anchor",
+      strategy: "hybrid",
+    });
+
+    expect(candidateIds).toHaveLength(32);
+    for (let index = 1; index <= 12; index += 1) {
+      expect(candidateIds).toContain(
+        `primary-${String(index).padStart(2, "0")}`,
+      );
+    }
+    expect(candidateIds).toContain("supplementary-target");
     expect(result.facts[0]?.id).toBe("supplementary-target");
   });
 

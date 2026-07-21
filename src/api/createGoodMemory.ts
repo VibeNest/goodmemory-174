@@ -241,6 +241,8 @@ const RECALL_PASS_FUSION_RRF_K = 60;
 
 function fuseFactsAcrossRecallPasses(
   results: readonly RecallResult[],
+  preRankLimit: number,
+  primaryReserveLimit: number,
 ): RecallResult["facts"] {
   const fused = new Map<string, {
     fact: RecallResult["facts"][number];
@@ -260,12 +262,30 @@ function fuseFactsAcrossRecallPasses(
       }
     }
   }
-  return [...fused.values()]
+  const ranked = [...fused.values()]
     .sort(
       (left, right) =>
         right.score - left.score || left.firstSeen - right.firstSeen,
     )
     .map(({ fact }) => fact);
+  if (ranked.length <= preRankLimit) {
+    return ranked;
+  }
+
+  const requiredPrimaryIds = new Set(
+    results[0]!.facts
+      .slice(0, Math.min(primaryReserveLimit, preRankLimit))
+      .map((fact) => fact.id),
+  );
+  const globalIds = ranked
+    .filter((fact) => !requiredPrimaryIds.has(fact.id))
+    .slice(0, preRankLimit - requiredPrimaryIds.size)
+    .map((fact) => fact.id);
+  const preRankIds = new Set([...requiredPrimaryIds, ...globalIds]);
+  return [
+    ...ranked.filter((fact) => preRankIds.has(fact.id)),
+    ...ranked.filter((fact) => !preRankIds.has(fact.id)),
+  ];
 }
 
 function unionMetadataList<T>(
@@ -379,13 +399,18 @@ function withRecallPlanTrace(input: {
 function mergeRecallResults(
   primary: RecallResult,
   supplementary: RecallResult[],
+  plan: Pick<RecallPlan, "preRankLimit" | "selectedLimit">,
   policyMarker = "decomposed_recall",
 ): RecallResult {
   if (supplementary.length === 0) {
     return primary;
   }
   const results = [primary, ...supplementary];
-  const facts = fuseFactsAcrossRecallPasses(results);
+  const facts = fuseFactsAcrossRecallPasses(
+    results,
+    plan.preRankLimit,
+    plan.selectedLimit,
+  );
   const preferences = unionRecordsById(results, (result) => result.preferences);
   const references = unionRecordsById(results, (result) => result.references);
   const feedback = unionRecordsById(results, (result) => result.feedback);
@@ -1175,7 +1200,11 @@ class GoodMemoryImpl implements GoodMemory {
               language: this.language,
               locale: resolvedLanguage.locale,
               query: input.query,
-              referenceTime: this.now().toISOString(),
+              referenceTime:
+                input.referenceTime !== undefined &&
+                  Number.isFinite(Date.parse(input.referenceTime))
+                  ? new Date(Date.parse(input.referenceTime)).toISOString()
+                  : this.now().toISOString(),
               scope: input.scope,
             },
           })
@@ -1234,7 +1263,12 @@ class GoodMemoryImpl implements GoodMemory {
             query: context.query,
             recall: singlePassRecall,
             merge: (primary, supplementary) =>
-              mergeRecallResults(primary, supplementary, "iterative_recall"),
+              mergeRecallResults(
+                primary,
+                supplementary,
+                recallPlan,
+                "iterative_recall",
+              ),
             options: { maxHops: multiHopMaxHops },
           });
           return {
@@ -1293,7 +1327,12 @@ class GoodMemoryImpl implements GoodMemory {
             return recalled.result;
           },
           merge: (primary, supplementary) =>
-            mergeRecallResults(primary, supplementary, "decomposed_recall"),
+            mergeRecallResults(
+              primary,
+              supplementary,
+              recallPlan,
+              "decomposed_recall",
+            ),
         });
         result = decomposed.result;
         subQueries = decomposed.subQueries;

@@ -124,6 +124,13 @@ export interface RecallInput {
   rerank?: boolean;
   /** Request-local plan shared by API orchestration and each retrieval hop. */
   recallPlan?: RecallPlan;
+  /**
+   * Optional per-call temporal anchor (ISO-8601). When set to a parseable
+   * timestamp it replaces the config clock for this recall: plan resolution,
+   * temporal claim selection, document visibility, and freshness all anchor
+   * to it. Invalid values fall back to the config clock.
+   */
+  referenceTime?: string;
 }
 
 export interface RecallHit {
@@ -231,6 +238,15 @@ export interface RecallSemanticCandidatesConfig {
 export interface RecallGeneralizedFusionConfig {
   // Omit to enable lexical, dense, entity, temporal, and relation channels.
   channels?: readonly GeneralizedFusionChannel[];
+  // Per-lane caps for fused non-fact records admitted into the packet
+  // (references / episodes / session archives). Defaults stay at the
+  // conservative 1 / 2 / 1; raise them only behind measurement — episode and
+  // archive records are token-expensive context.
+  contentLaneRecords?: {
+    episodes?: number;
+    references?: number;
+    sessionArchives?: number;
+  };
   // Global cap for the fused content-candidate set. This is an additive recall
   // budget, not a cap on records already selected by the baseline selectors.
   maxCandidates?: number;
@@ -645,7 +661,11 @@ export function createRecallEngine(config: RecallEngineConfig) {
         locale: input.locale,
         text: input.query,
       });
-      const currentReferenceTime = referenceTime();
+      const currentReferenceTime =
+        input.referenceTime !== undefined &&
+          Number.isFinite(Date.parse(input.referenceTime))
+          ? new Date(Date.parse(input.referenceTime)).toISOString()
+          : referenceTime();
       const planResolution = input.recallPlan
         ? { assistantApplied: false, plan: input.recallPlan }
         : await resolveRecallPlan({
@@ -1258,6 +1278,13 @@ export function createRecallEngine(config: RecallEngineConfig) {
             const fused = fuseGeneralizedRecallCandidates({
               query: input.query,
               documents: contentDocuments,
+              // The document set comes from a bounded FTS search, so it is
+              // genuinely partial: a valid dense/entity candidate's documents
+              // may simply not match the query text. Visibility filtering for
+              // those channels therefore stays off (lexical visibility is
+              // always enforced from the searched documents themselves).
+              // Per-candidate validity checks belong on the candidate records,
+              // not on this incomplete set.
               documentSetComplete: false,
               entities: contentEntities,
               claims,
@@ -1308,7 +1335,10 @@ export function createRecallEngine(config: RecallEngineConfig) {
               ],
               channels: generalizedFusionConfig.channels,
               maxCandidates: generalizedFusionBudget?.maxCandidates,
-              minRelativeStrength: 0,
+              // Honor the configured dynamic-budget floor; default stays 0
+              // (no trimming) so existing profiles keep their behavior until
+              // a profile opts in after measurement.
+              minRelativeStrength: generalizedFusionConfig.minRelativeStrength ?? 0,
               referenceTime: temporalReferenceTime,
               rrfK: generalizedFusionConfig.rrfK,
               tokenize: (text) =>
@@ -1536,7 +1566,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
         candidates: generalizedFusionCandidates,
         collection: "session_archives",
         getId: (archive) => archive.id,
-        maxRecords: 1,
+        maxRecords:
+          generalizedFusionConfig?.contentLaneRecords?.sessionArchives ?? 1,
         records: archivesRaw,
         selected: selectedArchives.archives,
         traces: selectedArchives.traces,
@@ -1567,7 +1598,7 @@ export function createRecallEngine(config: RecallEngineConfig) {
         candidates: generalizedFusionCandidates,
         collection: "episodes",
         getId: (episode) => episode.id,
-        maxRecords: 2,
+        maxRecords: generalizedFusionConfig?.contentLaneRecords?.episodes ?? 2,
         records: episodesRaw,
         selected: selectedEpisodes.episodes,
         traces: selectedEpisodes.traces,
@@ -1599,7 +1630,8 @@ export function createRecallEngine(config: RecallEngineConfig) {
         candidates: generalizedFusionCandidates,
         collection: "references",
         getId: (reference) => reference.id,
-        maxRecords: 1,
+        maxRecords:
+          generalizedFusionConfig?.contentLaneRecords?.references ?? 1,
         records: referencesRaw,
         selected: selectedReferences.references,
         traces: selectedReferences.traces,

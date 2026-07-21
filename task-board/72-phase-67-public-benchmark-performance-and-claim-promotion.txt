@@ -49,11 +49,11 @@ viable JUDGE-FREE public-claim routes were:
 Those were the fastest honest paths; the independent-judge path was infra-blocked
 like LoCoMo's neural-embedding path.
 
-Current verdict after the ImplicitMemBench gpt-5.4 stored-answer rescore
-(2026-07-06): BEAM, LoCoMo, LongMemEval, MemoryAgentBench, and
-ImplicitMemBench are public-claim candidates and README-promoted through
-`benchmark-claims/*.json`, subject to `gate:public-benchmark-claim --strict`
-passing over the updated declarations, artifacts, and README rows.
+Historical verdict after the ImplicitMemBench gpt-5.4 stored-answer rescore
+(2026-07-06): all five declarations were then treated as public-claim
+candidates. Phase 68 later superseded that boundary: current `v0.6.0` claims
+are BEAM, LoCoMo, and MemoryAgentBench; LongMemEval and ImplicitMemBench are
+versioned historical evidence under `benchmark-claims/*.json`.
 Phase 61 Full-300 rerun evidence is now protected by strict scalar parsing:
 `eval:phase-61-full300` rejects duplicate benchmark/output/run/budget selectors,
 requires a single path-segment `--run-id`, requires canonical positive integer
@@ -208,8 +208,10 @@ Tasks
   `rubric-items` for BEAM), `sourceAnswersUnchanged`, source-vs-selected scope
   counts (`sourceCases`/`selectedCases`, or BEAM `sourceQuestions` /
   `selectedQuestions` plus `sourceRubricItems` / `selectedRubricItems`), and an
-  explicit claim boundary for stored-answer official-protocol comparability
-  evidence. Source input paths are also rejected when they resolve inside the
+  benchmark-and-judge-model-aware claim boundary for stored-answer prompt-
+  compatible evidence. In particular, LongMemEval scores judged by gpt-5.4 or
+  gpt-5.5 are not labeled directly comparable to published official scores.
+  Source input paths are also rejected when they resolve inside the
   official-rescore output run directory, so stored answers, benchmark reference
   roots, and BEAM rubrics cannot be mixed with derived `run-identity.json`,
   `progress.jsonl`, or `rescore-summary.json` artifacts. This is input,
@@ -249,19 +251,18 @@ Tasks
   source-vs-selected scope counts, and an explicit stored-answer comparability
   `claimBoundary` in `rescore-summary.json`, with the same published scores.
 
-[DONE 2026-07-02] P67-B LongMemEval public-claim replay. The v0.3.5
+[DONE 2026-07-02; SUPERSEDED BY PHASE 68] P67-B LongMemEval replay. The v0.3.5
   `goodmemory-rules-only` replay produced a judge-free deterministic-subset
-  public claim: 0.720 (360/500) versus no-memory 0.068 over the full 500
+  result: 0.720 (360/500) versus no-memory 0.068 over the full 500
   questions, `executionFailures: 0`, MIT dataset provenance verified, commit
-  `6f9152c`, and same-model semantic-judge rescues excluded from the claimed
-  score. `benchmark-claims/longmemeval.json` now has `publicClaimAllowed: true`
-  and passes `gate:public-benchmark-claim`; the old with-judge LongMemEval
-  number remains internal diagnostic evidence only.
+  `6f9152c`, and same-model semantic-judge rescues excluded from the recorded
+  score. It was public at this phase boundary; the current declaration now has
+  `publicClaimAllowed: false` and retains the result as historical evidence.
   CLI guard update (2026-07-04): `eval:phase-62-deterministic-subset` rejects
   duplicate `--report-path`, `--run-id`, `--output-dir`, `--claim-profile`, and
   `--baseline-profile` values before resolving the source report, keeping the
   judge-free helper's source/output/profile selection unambiguous. This does
-  not change the 0.720 public claim.
+  not change the versioned 0.720 result.
 
 [DONE 2026-06-25] P67-C MemoryAgentBench task-specific answer harness. The
   deterministic, judge-free task-specific harness completed the four-competency

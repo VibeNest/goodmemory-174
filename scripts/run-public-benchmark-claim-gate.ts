@@ -33,6 +33,18 @@ export const CLAIM_PROFILE_AVAILABILITIES = [
 ] as const;
 export type ClaimProfileAvailability =
   (typeof CLAIM_PROFILE_AVAILABILITIES)[number];
+export const METRIC_DIRECTIONS = [
+  "higher-is-better",
+  "lower-is-better",
+] as const;
+export type MetricDirection = (typeof METRIC_DIRECTIONS)[number];
+
+const FULL_COMMIT_PATTERN = /^[0-9a-f]{40}$/iu;
+const SHA256_PATTERN = /^[0-9a-f]{64}$/iu;
+const HISTORICAL_PROJECTION_KIND = "tracked-historical-evidence-projection";
+const HISTORICAL_ASSERTION_CONTRACT_ERROR =
+  "historical projection assertions must bind artifactKind, benchmark, generatedBy, " +
+  "schemaVersion, sourceArtifacts path/bytes/sha256, and runIdentity or scorerIdentity";
 
 export interface BenchmarkClaimComparison {
   asOf: string;
@@ -52,8 +64,21 @@ export interface BenchmarkClaimReport {
   coverage?: { complete: boolean; note?: string };
   dataset: { license: string | null; source: string | null; vendored: boolean };
   evidence: { artifacts: ClaimEvidenceArtifact[] };
-  metrics: { baseline: number | null; primary: string; score: number };
-  model: { answerModel: string | null; judgeModel: string | null; sameModelJudge: boolean };
+  metrics: {
+    baseline: number | null;
+    metricDirection: MetricDirection;
+    primary: string;
+    score: number;
+  };
+  model: {
+    answerGateway?: string;
+    answerModel: string | null;
+    answerProvider?: string;
+    judgeGateway?: string;
+    judgeModel: string | null;
+    judgeProvider?: string;
+    sameModelJudge: boolean;
+  };
   publicClaim?: {
     readmeDisclosureFragments: string[];
     readmeRequiredFragments: string[];
@@ -101,6 +126,31 @@ function isNullableStrictString(value: unknown): value is null | string {
   return value === null || isStrictNonEmpty(value);
 }
 
+function canonicalModelName(model: string, providers: Array<string | undefined>): string {
+  const normalizedModel = model.trim().toLowerCase();
+  for (const provider of providers) {
+    if (isNonEmpty(provider)) {
+      const normalizedProvider = provider.trim().toLowerCase();
+      for (const separator of ["/", ":"] as const) {
+        const prefix = `${normalizedProvider}${separator}`;
+        if (normalizedModel.startsWith(prefix)) {
+          return normalizedModel.slice(prefix.length);
+        }
+      }
+    }
+  }
+  return normalizedModel;
+}
+
+function usesSameEvaluator(model: BenchmarkClaimReport["model"]): boolean {
+  if (!isNonEmpty(model.answerModel) || !isNonEmpty(model.judgeModel)) {
+    return false;
+  }
+  const providers = [model.answerProvider, model.judgeProvider];
+  return canonicalModelName(model.answerModel, providers) ===
+    canonicalModelName(model.judgeModel, providers);
+}
+
 function isValidAssertionPathSegment(value: unknown): value is number | string {
   if (typeof value === "number") {
     return Number.isSafeInteger(value) && value >= 0;
@@ -125,6 +175,153 @@ function validateRepoRelativeArtifactPath(path: string): string | null {
     return "must be a repo-relative path that does not escape the repository";
   }
   return null;
+}
+
+function isValidRunIdentity(value: unknown): value is {
+  commit: string;
+  runId: string;
+} {
+  return isRecord(value) &&
+    isStrictNonEmpty(value.runId) &&
+    typeof value.commit === "string" &&
+    FULL_COMMIT_PATTERN.test(value.commit);
+}
+
+function isValidScorerIdentity(value: unknown): value is {
+  commit: string;
+  fileSha256: string;
+  path: string;
+  repository: string;
+} {
+  return isRecord(value) &&
+    isStrictNonEmpty(value.repository) &&
+    typeof value.commit === "string" &&
+    FULL_COMMIT_PATTERN.test(value.commit) &&
+    isStrictNonEmpty(value.path) &&
+    validateRepoRelativeArtifactPath(value.path) === null &&
+    typeof value.fileSha256 === "string" &&
+    SHA256_PATTERN.test(value.fileSha256);
+}
+
+function validateHistoricalProjection(input: {
+  artifact: ClaimEvidenceArtifact;
+  benchmark: string;
+  parsed: unknown;
+}): string[] {
+  if (!isRecord(input.parsed)) {
+    return ["historical projection must be a JSON object"];
+  }
+  const errors: string[] = [];
+  const projection = input.parsed;
+  const requireBound = (
+    path: ClaimEvidenceAssertionPath,
+    equals: ClaimEvidenceAssertionValue,
+    label: string,
+  ): void => {
+    if (!hasExactAssertion(input.artifact.assertions, path, equals)) {
+      errors.push(
+        `historical projection field ${label} must be bound by an evidence assertion`,
+      );
+    }
+  };
+  if (projection.artifactKind !== HISTORICAL_PROJECTION_KIND) {
+    errors.push(
+      `historical projection artifactKind must be ${HISTORICAL_PROJECTION_KIND}`,
+    );
+  } else {
+    requireBound(["artifactKind"], projection.artifactKind, "artifactKind");
+  }
+  if (projection.benchmark !== input.benchmark) {
+    errors.push(`historical projection benchmark must equal ${input.benchmark}`);
+  } else {
+    requireBound(["benchmark"], projection.benchmark, "benchmark");
+  }
+  if (!isStrictNonEmpty(projection.generatedBy)) {
+    errors.push("historical projection generatedBy must be a non-empty unpadded string");
+  } else {
+    requireBound(["generatedBy"], projection.generatedBy, "generatedBy");
+  }
+  if (projection.schemaVersion !== 1) {
+    errors.push("historical projection schemaVersion must be 1");
+  } else {
+    requireBound(["schemaVersion"], projection.schemaVersion, "schemaVersion");
+  }
+
+  const sources = projection.sourceArtifacts;
+  const sourcesValid = Array.isArray(sources) && sources.length > 0 && sources.every(
+    (source) =>
+      isRecord(source) &&
+      isStrictNonEmpty(source.path) &&
+      validateRepoRelativeArtifactPath(source.path) === null &&
+      typeof source.bytes === "number" &&
+      Number.isSafeInteger(source.bytes) &&
+      source.bytes > 0 &&
+      typeof source.sha256 === "string" &&
+      SHA256_PATTERN.test(source.sha256),
+  );
+  if (!sourcesValid) {
+    errors.push(
+      "historical projection sourceArtifacts must be non-empty and each require " +
+        "repo-relative path, positive bytes, and sha256",
+    );
+  } else {
+    sources.forEach((source, index) => {
+      requireBound(
+        ["sourceArtifacts", index, "path"],
+        source.path,
+        `sourceArtifacts[${index}].path`,
+      );
+      requireBound(
+        ["sourceArtifacts", index, "bytes"],
+        source.bytes,
+        `sourceArtifacts[${index}].bytes`,
+      );
+      requireBound(
+        ["sourceArtifacts", index, "sha256"],
+        source.sha256,
+        `sourceArtifacts[${index}].sha256`,
+      );
+    });
+  }
+
+  const runIdentity = projection.runIdentity;
+  const scorerIdentity = projection.scorerIdentity;
+  const runIdentityValid = isValidRunIdentity(runIdentity);
+  const scorerIdentityValid = isValidScorerIdentity(scorerIdentity);
+  if (!runIdentityValid && !scorerIdentityValid) {
+    errors.push("historical projection requires runIdentity or scorerIdentity");
+    return errors;
+  }
+  const runIdentityBound = runIdentityValid &&
+    hasExactAssertion(input.artifact.assertions, ["runIdentity", "runId"], runIdentity.runId) &&
+    hasExactAssertion(input.artifact.assertions, ["runIdentity", "commit"], runIdentity.commit);
+  const scorerIdentityBound = scorerIdentityValid &&
+    hasExactAssertion(
+      input.artifact.assertions,
+      ["scorerIdentity", "repository"],
+      scorerIdentity.repository,
+    ) &&
+    hasExactAssertion(
+      input.artifact.assertions,
+      ["scorerIdentity", "commit"],
+      scorerIdentity.commit,
+    ) &&
+    hasExactAssertion(
+      input.artifact.assertions,
+      ["scorerIdentity", "path"],
+      scorerIdentity.path,
+    ) &&
+    hasExactAssertion(
+      input.artifact.assertions,
+      ["scorerIdentity", "fileSha256"],
+      scorerIdentity.fileSha256,
+    );
+  if (!runIdentityBound && !scorerIdentityBound) {
+    errors.push(
+      "historical projection runIdentity or scorerIdentity must be bound by evidence assertions",
+    );
+  }
+  return errors;
 }
 
 function renderAssertionPath(path: ClaimEvidenceAssertionPath): string {
@@ -156,6 +353,83 @@ function readAssertionValue(
 
 function formatAssertionValue(value: unknown): string {
   return JSON.stringify(value);
+}
+
+function assertionPathEquals(
+  actual: unknown,
+  expected: ClaimEvidenceAssertionPath,
+): boolean {
+  return Array.isArray(actual) &&
+    actual.length === expected.length &&
+    actual.every((segment, index) => Object.is(segment, expected[index]));
+}
+
+function hasExactAssertion(
+  assertions: unknown,
+  path: ClaimEvidenceAssertionPath,
+  equals: ClaimEvidenceAssertionValue,
+): boolean {
+  return Array.isArray(assertions) && assertions.some(
+    (assertion) =>
+      isRecord(assertion) &&
+      assertionPathEquals(assertion.path, path) &&
+      Object.is(assertion.equals, equals),
+  );
+}
+
+function assertionEqualsAt(
+  assertions: unknown,
+  path: ClaimEvidenceAssertionPath,
+): unknown {
+  if (!Array.isArray(assertions)) {
+    return undefined;
+  }
+  const assertion = assertions.find(
+    (candidate) => isRecord(candidate) && assertionPathEquals(candidate.path, path),
+  );
+  return isRecord(assertion) ? assertion.equals : undefined;
+}
+
+function hasHistoricalAssertionContract(
+  artifact: Record<string, unknown>,
+  benchmark: string,
+): boolean {
+  const assertions = artifact.assertions;
+  const sourcePath = assertionEqualsAt(assertions, ["sourceArtifacts", 0, "path"]);
+  const sourceBytes = assertionEqualsAt(assertions, ["sourceArtifacts", 0, "bytes"]);
+  const sourceSha256 = assertionEqualsAt(assertions, ["sourceArtifacts", 0, "sha256"]);
+  const runCommit = assertionEqualsAt(assertions, ["runIdentity", "commit"]);
+  const runBound =
+    isStrictNonEmpty(assertionEqualsAt(assertions, ["runIdentity", "runId"])) &&
+    typeof runCommit === "string" &&
+    FULL_COMMIT_PATTERN.test(runCommit);
+  const scorerCommit = assertionEqualsAt(assertions, ["scorerIdentity", "commit"]);
+  const scorerSha256 = assertionEqualsAt(
+    assertions,
+    ["scorerIdentity", "fileSha256"],
+  );
+  const scorerBound =
+    isStrictNonEmpty(
+      assertionEqualsAt(assertions, ["scorerIdentity", "repository"]),
+    ) &&
+    typeof scorerCommit === "string" &&
+    FULL_COMMIT_PATTERN.test(scorerCommit) &&
+    isStrictNonEmpty(assertionEqualsAt(assertions, ["scorerIdentity", "path"])) &&
+    typeof scorerSha256 === "string" &&
+    SHA256_PATTERN.test(scorerSha256);
+  return (
+    hasExactAssertion(assertions, ["artifactKind"], HISTORICAL_PROJECTION_KIND) &&
+    hasExactAssertion(assertions, ["benchmark"], benchmark) &&
+    isStrictNonEmpty(assertionEqualsAt(assertions, ["generatedBy"])) &&
+    hasExactAssertion(assertions, ["schemaVersion"], 1) &&
+    isStrictNonEmpty(sourcePath) &&
+    typeof sourceBytes === "number" &&
+    Number.isSafeInteger(sourceBytes) &&
+    sourceBytes > 0 &&
+    typeof sourceSha256 === "string" &&
+    SHA256_PATTERN.test(sourceSha256) &&
+    (runBound || scorerBound)
+  );
 }
 
 function benchmarkDeclarationFileName(benchmark: string): string {
@@ -225,9 +499,28 @@ export function evaluateClaimBoundary(
   }
   if (report.metrics.baseline === null || report.metrics.baseline === undefined) {
     blockers.push("no baseline/reference score for comparison");
+  } else if (report.metrics.metricDirection === "higher-is-better") {
+    if (!(report.metrics.score > report.metrics.baseline)) {
+      blockers.push(
+        `score ${report.metrics.score} must be greater than baseline ${report.metrics.baseline}`,
+      );
+    }
+  } else if (report.metrics.metricDirection === "lower-is-better") {
+    if (!(report.metrics.score < report.metrics.baseline)) {
+      blockers.push(
+        `score ${report.metrics.score} must be less than baseline ${report.metrics.baseline}`,
+      );
+    }
+  } else {
+    blockers.push("metrics.metricDirection missing or invalid");
   }
-  if (!isNonEmpty(report.run.commit)) {
-    blockers.push("run.commit missing (not reproducible)");
+  if (
+    !isNonEmpty(report.run.commit) ||
+    !FULL_COMMIT_PATTERN.test(report.run.commit)
+  ) {
+    blockers.push(
+      "run.commit must be a complete 40-character hexadecimal commit (not reproducible)",
+    );
   }
   if (!isNonEmpty(report.run.command)) {
     blockers.push("run.command missing (not reproducible)");
@@ -244,9 +537,10 @@ export function evaluateClaimBoundary(
   if (report.dataset.vendored !== false) {
     blockers.push("dataset must not be vendored into the repo (dataset.vendored must be false)");
   }
-  if (report.model.sameModelJudge && isNonEmpty(report.model.judgeModel)) {
+  if (usesSameEvaluator(report.model) || report.model.sameModelJudge) {
     blockers.push(
-      "same-model judge bias (answer and judge are the same model); needs an independent judge or a deterministic scorer",
+      "same-model judge bias derived from answerModel/judgeModel evaluator identity; " +
+        "needs an independent judge or a deterministic scorer",
     );
   }
   if (report.coverage && report.coverage.complete === false) {
@@ -412,6 +706,30 @@ export function validateClaimReport(value: unknown): { errors: string[]; valid: 
         });
       }
     });
+    if (
+      value.status === "internal_evidence" &&
+      isRecord(value.comparison) &&
+      value.comparison.availability === "historical"
+    ) {
+      if (value.evidence.artifacts.some((artifact) =>
+        !isRecord(artifact) ||
+        !isStrictNonEmpty(artifact.path) ||
+        !artifact.path.startsWith("benchmark-claims/evidence/")
+      )) {
+        errors.push(
+          "historical evidence artifacts must live under benchmark-claims/evidence",
+        );
+      }
+      value.evidence.artifacts.forEach((artifact, index) => {
+        if (
+          isRecord(artifact) &&
+          isNonEmpty(value.benchmark) &&
+          !hasHistoricalAssertionContract(artifact, value.benchmark)
+        ) {
+          errors.push(`evidence.artifacts[${index}] ${HISTORICAL_ASSERTION_CONTRACT_ERROR}`);
+        }
+      });
+    }
   }
   if (!isRecord(value.run)) {
     errors.push("run must be an object");
@@ -421,6 +739,8 @@ export function validateClaimReport(value: unknown): { errors: string[]; valid: 
     }
     if (!isStrictNonEmpty(value.run.commit)) {
       errors.push("run.commit must be a non-empty unpadded string");
+    } else if (!FULL_COMMIT_PATTERN.test(value.run.commit)) {
+      errors.push("run.commit must be a complete 40-character hexadecimal commit");
     }
     if (
       typeof value.run.executionFailures !== "number" ||
@@ -445,15 +765,27 @@ export function validateClaimReport(value: unknown): { errors: string[]; valid: 
     if (typeof value.model.sameModelJudge !== "boolean") {
       errors.push("model.sameModelJudge must be a boolean");
     }
+    for (const field of [
+      "answerGateway",
+      "answerProvider",
+      "judgeGateway",
+      "judgeProvider",
+    ] as const) {
+      if (value.model[field] !== undefined && !isStrictNonEmpty(value.model[field])) {
+        errors.push(`model.${field} must be a non-empty unpadded string when present`);
+      }
+    }
   }
   if (
     !isRecord(value.metrics) ||
     !Number.isFinite(value.metrics.baseline) ||
+    !METRIC_DIRECTIONS.includes(value.metrics.metricDirection as MetricDirection) ||
     !isStrictNonEmpty(value.metrics.primary) ||
     !Number.isFinite(value.metrics.score)
   ) {
     errors.push(
-      "metrics.baseline (finite number), primary (non-empty unpadded string), and score (finite number) are required",
+      "metrics.baseline and score must be finite numbers, primary must be a non-empty " +
+        "unpadded string, and metricDirection must be higher-is-better or lower-is-better",
     );
   }
   if (
@@ -530,6 +862,18 @@ export async function checkClaimEvidenceArtifacts(input: {
       } catch (error) {
         errors.push(`evidence artifact ${artifact.path} is not valid JSON: ${String(error)}`);
         continue;
+      }
+      if (
+        input.report.status === "internal_evidence" &&
+        input.report.comparison.availability === "historical"
+      ) {
+        errors.push(
+          ...validateHistoricalProjection({
+            artifact,
+            benchmark: input.report.benchmark,
+            parsed,
+          }).map((error) => `evidence artifact ${artifact.path}: ${error}`),
+        );
       }
       for (const assertion of artifact.assertions ?? []) {
         const actual = readAssertionValue(parsed, assertion.path);

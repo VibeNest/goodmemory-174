@@ -52,6 +52,58 @@ describe("language service", () => {
     expect(service.tokenize("请记住我喜欢中文回复。", resolved)).not.toHaveLength(0);
   });
 
+  it("keeps short English content tokens such as acronyms and codes", () => {
+    const service = createLanguageService();
+    const resolved = service.resolveFromText({ text: "RL and AI work in SF." });
+
+    const tokens = service.tokenize("RL and AI work in SF.", resolved, {
+      excludeStopwords: true,
+    });
+    expect(tokens).toContain("rl");
+    expect(tokens).toContain("ai");
+    expect(tokens).toContain("sf");
+    expect(tokens).not.toContain("and");
+    expect(tokens).not.toContain("in");
+
+    // Without stopword exclusion the function words stay available to callers
+    // that want raw tokens.
+    const rawTokens = service.tokenize("RL and AI work in SF.", resolved);
+    expect(rawTokens).toContain("and");
+    expect(rawTokens).toContain("in");
+  });
+
+  it("keeps the naive overlap signal on its calibrated length floor", () => {
+    const service = createLanguageService();
+
+    // Short tokens stay out of the Jaccard overlap on purpose: its max
+    // denominator would let them dilute every calibrated score. Short-token
+    // matching is the BM25/fusion channels' job.
+    const shortOnly = service.tokenOverlap(
+      "Marco is learning RL for robot control.",
+      "What is RL used for?",
+      "en-US",
+      { excludeStopwords: true },
+    );
+    expect(shortOnly).toBe(0);
+
+    // Anti-dilution guard: adding short content words to one side must not
+    // change an established overlap score.
+    const base = service.tokenOverlap(
+      "avoid DeepAnalyzer first",
+      "please avoid DeepAnalyzer",
+      "en-US",
+      { excludeStopwords: true },
+    );
+    const diluted = service.tokenOverlap(
+      "avoid DeepAnalyzer first and use it",
+      "please avoid DeepAnalyzer",
+      "en-US",
+      { excludeStopwords: true },
+    );
+    expect(base).toBeGreaterThan(0);
+    expect(diluted).toBe(base);
+  });
+
   it("supports Chinese query intent and polarity detection", () => {
     const service = createLanguageService();
 

@@ -294,6 +294,49 @@ function queryContainsAlias(normalizedQuery: string, alias: string): boolean {
   );
 }
 
+function escapeRegExpLiteral(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Deterministic truecasing check for the entity channel. Capitalization-based
+// entity extraction turns sentence-initial common words ("Evenings include...")
+// into entity mentions, and a singleton entity then gets maximal rarity in the
+// channel. When the scope's own documents use the same word all-lowercase, the
+// capitalized surface is sentence position or title casing, not a name — the
+// entity carries no adjacency signal for this scope. All-caps acronyms,
+// multi-word spans, and lowercase-native aliases are never treated as common
+// words.
+function isCommonWordEntity(
+  entity: EntityProjection,
+  documents: readonly RecallIndexDocument[],
+): boolean {
+  const surfaces = entity.aliases.length > 0
+    ? entity.aliases
+    : [entity.canonicalKey];
+  const titleCaseSurfaces = surfaces.filter((surface) => {
+    const trimmed = surface.trim();
+    if (trimmed.length < 2 || /\s/.test(trimmed)) {
+      return false;
+    }
+    // TitleCase single word: initial uppercase followed by lowercase letters.
+    return /^\p{Lu}[\p{Ll}\p{N}]+$/u.test(trimmed);
+  });
+  if (
+    titleCaseSurfaces.length === 0 ||
+    titleCaseSurfaces.length !== surfaces.length
+  ) {
+    return false;
+  }
+  return titleCaseSurfaces.every((surface) => {
+    const lower = surface.trim().normalize("NFKC").toLocaleLowerCase("en-US");
+    const pattern = new RegExp(
+      `(?:^|[^\\p{L}\\p{N}])${escapeRegExpLiteral(lower)}(?:$|[^\\p{L}\\p{N}])`,
+      "u",
+    );
+    return documents.some((document) => pattern.test(document.text));
+  });
+}
+
 function buildEntityChannel(
   input: GeneralizedFusionInput,
   visibleSourceKeys: ReadonlySet<string>,
@@ -326,7 +369,8 @@ function buildEntityChannel(
           queryContainsAlias(normalizedQuery, entity.canonicalKey) ||
           entity.aliases.some((alias) =>
             queryContainsAlias(normalizedQuery, alias),
-          )),
+          )) &&
+        !isCommonWordEntity(entity, input.documents),
     );
   if (matchedEntities.length === 0) {
     return [];

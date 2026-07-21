@@ -4,7 +4,7 @@
     "asOf": "2026-07-09",
     "availability": "historical",
     "notes": [
-      "The 0.720 value is the deterministic strict lower bound; the official-protocol stored-answer score is reported separately.",
+      "The 0.720 value is the deterministic strict lower bound; the official-prompt-compatible stored-answer diagnostic is reported separately and is not directly comparable to published official scores.",
       "Current external references use different answer models and retrieval budgets, so they are not controlled head-to-head measurements."
     ],
     "runtimeProfile": "goodmemory-rules-only@0.3.5",
@@ -17,7 +17,7 @@
     "vendored": false
   },
   "run": {
-    "commit": "6f9152c",
+    "commit": "6f9152c554c8b5f93af990c434380927de9e4b42",
     "packageVersion": "0.3.5",
     "command": "eval:phase-62-full500 -- --benchmark-root <dir with longmemeval_s.json = HF longmemeval_s_cleaned> --profile goodmemory-rules-only --profile baseline-no-memory --shard-concurrency 4 --run-id run-phase67b-longmemeval-rules-deterministic-current (resumable via --resume-existing-shards; auto-merges) -> eval:phase-62-deterministic-subset -- --report-path <runDir>/report.json --claim-profile goodmemory-rules-only",
     "executionFailures": 0
@@ -48,118 +48,175 @@
       {
         "assertions": [
           {
-            "path": ["runId"],
-            "equals": "run-phase67b-longmemeval-rules-deterministic-current"
-          },
-          {
-            "path": ["summary", "executionFailures"],
-            "equals": 0
-          },
-          {
-            "path": ["summary", "totalCases"],
-            "equals": 500
-          },
-          {
-            "path": ["profiles", "goodmemory-rules-only", "summary", "accuracy"],
-            "equals": 0.896
-          },
-          {
-            "path": ["profiles", "goodmemory-rules-only", "summary", "totalCases"],
-            "equals": 500
-          },
-          {
-            "path": ["profiles", "baseline-no-memory", "summary", "accuracy"],
-            "equals": 0.068
-          }
-        ],
-        "description": "Full 500-question stored-answer report for the judge-free deterministic-subset claim",
-        "path": "reports/eval/research/phase-62/longmemeval/run-phase67b-longmemeval-rules-deterministic-current/report.json"
-      },
-      {
-        "assertions": [
-          {
-            "path": ["sourceReportRunId"],
-            "equals": "run-phase67b-longmemeval-rules-deterministic-current"
-          },
-          {
-            "path": ["claim", "profile"],
-            "equals": "goodmemory-rules-only"
-          },
-          {
-            "path": ["claim", "deterministicSubsetAccuracy"],
-            "equals": 0.72
-          },
-          {
-            "path": ["claim", "executionFailures"],
-            "equals": 0
-          },
-          {
-            "path": ["claim", "judgeFree"],
-            "equals": true
-          },
-          {
-            "path": ["baseline", "deterministicSubsetAccuracy"],
-            "equals": 0.068
-          },
-          {
-            "path": ["memoryLift"],
-            "equals": 0.6519999999999999
-          }
-        ],
-        "description": "Deterministic-subset analyzer output for the public 0.720 judge-free claim",
-        "path": "reports/eval/research/phase-62/longmemeval/run-phase67b-longmemeval-rules-deterministic-current-deterministic-subset/deterministic-subset.json"
-      },
-      {
-        "assertions": [
-          {
-            "path": ["runId"],
-            "equals": "rescore-longmemeval-official-judge"
+            "path": ["artifactKind"],
+            "equals": "tracked-historical-evidence-projection"
           },
           {
             "path": ["benchmark"],
-            "equals": "longmemeval"
+            "equals": "LongMemEval"
           },
           {
-            "path": ["judgedCases"],
+            "path": ["generatedBy"],
+            "equals": "scripts/project-historical-evidence.ts"
+          },
+          {
+            "path": ["schemaVersion"],
+            "equals": 1
+          },
+          {
+            "path": ["scorerIdentity", "repository"],
+            "equals": "https://github.com/xiaowu0162/LongMemEval"
+          },
+          {
+            "path": ["scorerIdentity", "commit"],
+            "equals": "9e0b455f4ef0e2ab8f2e582289761153549043fc"
+          },
+          {
+            "path": ["scorerIdentity", "path"],
+            "equals": "src/evaluation/evaluate_qa.py"
+          },
+          {
+            "path": ["scorerIdentity", "fileSha256"],
+            "equals": "ecce9c4c79dc89d99534ac17b383a5cbb5b9f0c69ee98adaf0684742e3d95251"
+          },
+          {
+            "path": ["sourceArtifacts", 0, "path"],
+            "equals": "reports/eval/research/phase-62/longmemeval/run-phase67b-longmemeval-rules-deterministic-current/report.json"
+          },
+          {
+            "path": ["sourceArtifacts", 0, "bytes"],
+            "equals": 610477
+          },
+          {
+            "path": ["sourceArtifacts", 0, "sha256"],
+            "equals": "553998854b05bcfb59e8fbf3840ef06a9cf604539d3ff6690d4cd8051b3e7c2e"
+          },
+          {
+            "path": ["sourceArtifacts", 1, "path"],
+            "equals": "reports/eval/research/phase-62/longmemeval/run-phase67b-longmemeval-rules-deterministic-current-deterministic-subset/deterministic-subset.json"
+          },
+          {
+            "path": ["sourceArtifacts", 1, "bytes"],
+            "equals": 1550
+          },
+          {
+            "path": ["sourceArtifacts", 1, "sha256"],
+            "equals": "e17c59f616655998485efa0b3c528938c0fe9795a6df1d5da9e4e63cebe06832"
+          },
+          {
+            "path": ["sourceArtifacts", 2, "path"],
+            "equals": "reports/eval/research/official-rescore/rescore-longmemeval-official-judge/rescore-summary.json"
+          },
+          {
+            "path": ["sourceArtifacts", 2, "bytes"],
+            "equals": 2113
+          },
+          {
+            "path": ["sourceArtifacts", 2, "sha256"],
+            "equals": "a00857380b6fb9bd7bc02039c13eb5a571b33b6cb8f578f30fc072e43b941046"
+          },
+          {
+            "path": ["sourceArtifacts", 3, "path"],
+            "equals": "reports/eval/research/official-rescore/rescore-longmemeval-official-judge/run-identity.json"
+          },
+          {
+            "path": ["sourceArtifacts", 3, "bytes"],
+            "equals": 777
+          },
+          {
+            "path": ["sourceArtifacts", 3, "sha256"],
+            "equals": "4edc00b8eb4635222b2e11627a14d79b9bf28c0a7df301629f87af39f8bed33c"
+          },
+          {
+            "path": ["deterministicClaim", "sourceCases"],
             "equals": 500
           },
           {
-            "path": ["selectedCases"],
-            "equals": 500
-          },
-          {
-            "path": ["sourceCases"],
-            "equals": 500
-          },
-          {
-            "path": ["judgeFailures"],
+            "path": ["deterministicClaim", "executionFailures"],
             "equals": 0
           },
           {
-            "path": ["sourceAnswersUnchanged"],
+            "path": ["deterministicClaim", "score"],
+            "equals": 0.72
+          },
+          {
+            "path": ["deterministicClaim", "baselineAccuracy"],
+            "equals": 0.068
+          },
+          {
+            "path": ["deterministicClaim", "judgeFree"],
             "equals": true
           },
           {
-            "path": ["overallAccuracy"],
+            "path": ["promptCompatibleDiagnostic", "judgeModel"],
+            "equals": "gpt-5.4"
+          },
+          {
+            "path": ["promptCompatibleDiagnostic", "protocol"],
+            "equals": "official LongMemEval evaluate_qa.py anscheck prompts (temperature 0)"
+          },
+          {
+            "path": ["promptCompatibleDiagnostic", "publishedScoreComparable"],
+            "equals": false
+          },
+          {
+            "path": ["promptCompatibleDiagnostic", "claimBoundary"],
+            "equals": "The 0.888 stored-answer diagnostic used pinned LongMemEval prompts with gpt-5.4, but the historical artifact did not persist provider and gateway identity; it is not directly comparable to published official scores."
+          },
+          {
+            "path": ["promptCompatibleDiagnostic", "sourceAnswersUnchanged"],
+            "equals": true
+          },
+          {
+            "path": ["promptCompatibleDiagnostic", "sourceInputFingerprints", "referencePath", "sha256"],
+            "equals": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442"
+          },
+          {
+            "path": ["promptCompatibleDiagnostic", "sourceInputFingerprints", "reportPath", "sha256"],
+            "equals": "553998854b05bcfb59e8fbf3840ef06a9cf604539d3ff6690d4cd8051b3e7c2e"
+          },
+          {
+            "path": ["promptCompatibleDiagnostic", "scorerSource", "commit"],
+            "equals": "9e0b455f4ef0e2ab8f2e582289761153549043fc"
+          },
+          {
+            "path": ["promptCompatibleDiagnostic", "scorerSource", "fileSha256"],
+            "equals": "ecce9c4c79dc89d99534ac17b383a5cbb5b9f0c69ee98adaf0684742e3d95251"
+          },
+          {
+            "path": ["promptCompatibleDiagnostic", "scorerSource", "promptSha256"],
+            "equals": "a3f4c27acbad0e06ad07d043b31e68a469a8a0f74938d89e21de193c04f58fe2"
+          },
+          {
+            "path": ["promptCompatibleDiagnostic", "selectedCases"],
+            "equals": 500
+          },
+          {
+            "path": ["promptCompatibleDiagnostic", "overallAccuracy"],
             "equals": 0.888
+          },
+          {
+            "path": ["promptCompatibleDiagnostic", "judgeFailures"],
+            "equals": 0
           }
         ],
-        "description": "Official-protocol comparable rescore of the same stored LongMemEval answers",
-        "path": "reports/eval/research/official-rescore/rescore-longmemeval-official-judge/rescore-summary.json"
+        "description": "Tracked compact projection of the historical LongMemEval evidence boundary and source-artifact hashes",
+        "path": "benchmark-claims/evidence/longmemeval-historical.json"
       }
     ]
   },
   "metrics": {
     "primary": "Judge-free deterministic-subset answer accuracy, goodmemory-rules-only profile, full 500 questions: a case counts correct ONLY when scored by a deterministic method (abstention/exact/contains/expected_alternative/numeric_count); semantic_judge is excluded by construction. Strict lower bound on overall accuracy.",
     "score": 0.72,
-    "baseline": 0.068
+    "baseline": 0.068,
+    "metricDirection": "higher-is-better"
   },
   "coverage": {
     "complete": true,
-    "note": "Full 500 questions, both profiles, executionFailures 0 (run-phase67b-longmemeval-rules-deterministic-current, 2026-07-02). Claim profile goodmemory-rules-only: 360/500 judge-free correct = exact 163 + contains 118 + numeric_count 50 + abstention 28 + expected_alternative 1 (abstention is only 7.8% of the judge-free correct — the claim is overwhelmingly content matches, not I-don't-know credit). Baseline-no-memory: 34/500 = 0.068, composed of abstention 30 + exact 3 + contains 1 — without memory the model can do little but correctly abstain. Memory lift +65.2 points. Diagnostics NOT claimed as the primary: same-model semantic_judge rescued 88 further mismatches (overall 0.896); evidence-session recall 0.9543. COMPARABLE-PROTOCOL TRACK 2026-07-05 (rescore of the SAME stored hypotheses, no regeneration; scripts/rescore-official-protocols.ts, run rescore-longmemeval-official-judge): under the OFFICIAL LongMemEval evaluate_qa.py anscheck prompts (temperature 0), judged by gpt-5.4 (cross-version, same family as the gpt-5.5 answerer - the primary gateway serves no other family), accuracy 0.888 (444/500, judgeFailures 0); per type: single-session-user 1.000, knowledge-update 0.936, multi-session 0.880, single-session-assistant 0.857, temporal-reasoning 0.842, preference 0.800. Published reference on the same official-protocol scale: Zep reports 90.2 with a gpt-4o judge. The judge-free 0.720 remains the strict lower bound; the two tracks bound the true value."
+    "note": "Full 500 questions, both profiles, executionFailures 0 (run-phase67b-longmemeval-rules-deterministic-current, 2026-07-02). Claim profile goodmemory-rules-only: 360/500 judge-free correct = exact 163 + contains 118 + numeric_count 50 + abstention 28 + expected_alternative 1 (abstention is only 7.8% of the judge-free correct — the claim is overwhelmingly content matches, not I-don't-know credit). Baseline-no-memory: 34/500 = 0.068, composed of abstention 30 + exact 3 + contains 1 — without memory the model can do little but correctly abstain. Memory lift +65.2 points. Diagnostics NOT claimed as the primary: same-model semantic_judge rescued 88 further mismatches (overall 0.896); evidence-session recall 0.9543. PROMPT-COMPATIBLE TRACK 2026-07-05 (rescore of the SAME stored hypotheses, no regeneration; scripts/rescore-official-protocols.ts, run rescore-longmemeval-official-judge): under the official LongMemEval evaluate_qa.py anscheck prompts (temperature 0), judged by gpt-5.4 (cross-version, same family as the gpt-5.5 answerer - the primary gateway serves no other family), accuracy 0.888 (444/500, judgeFailures 0); per type: single-session-user 1.000, knowledge-update 0.936, multi-session 0.880, single-session-assistant 0.857, temporal-reasoning 0.842, preference 0.800. The pinned evaluator model zoo accepts gpt-4o, gpt-4o-mini, and llama-3.1-70b-instruct, not gpt-5.4; therefore this diagnostic is not directly comparable to published official scores such as Zep's gpt-4o-judged 90.2. The judge-free 0.720 remains the strict lower bound."
   },
   "claimBoundary": {
     "publicClaimAllowed": false,
-    "reason": "Historical evidence only for its recorded package version and runtime profile; it is not a current-production claim. Clears every gate rule: judge-free metric by construction (the deterministic-subset analyzer counts only string/numeric match methods verified in src/eval/longmemeval.ts — semantic_judge fires only after all deterministic methods mismatch and is EXCLUDED from the claim, so judgeModel is null for the claimed metric), executionFailures 0 on all 500x2 cases, reproducible (commit 6f9152c, v0.3.5, pinned command + run id, persisted artifacts under reports/eval/research/phase-62/longmemeval/), MIT license verified upstream 2026-07-02 (repo LICENSE + HF dataset card xiaowu0162/longmemeval-cleaned), complete coverage, baseline-no-memory computed in the SAME run. REQUIRED DISCLOSURES if promoted: (1) the claim profile is goodmemory-rules-only — the embedding-free rules pipeline (no hybrid/postgres/embedding deps); (2) the run pipeline does contain an optional same-model (gpt-5.5) semantic_judge stage, but it contributes ZERO to the claimed 0.72 — its rescues (88 cases, overall 0.896) are reported as diagnostics only; (3) answers are still GENERATED by gpt-5.5 — judge-free refers to scoring, not generation; (4) the historical 0.908 (goodmemory-hybrid, with-judge, 2026-05-17 run) is superseded and NOT claimable. README promoted 2026-07-02 with user sign-off: the judge-free deterministic-subset row replaced the superseded 0.908 with-judge row (whose linked report no longer existed on disk); Current-Status updated in the same commit."
+    "reason": "Historical evidence only for its recorded package version and runtime profile; it is not a current-production claim. The recorded judge-free metric excludes semantic_judge rescues, reports executionFailures 0 on all 500x2 cases, and binds the tracked projection to the full source commit and source-artifact fingerprints. Current-package status, profile availability, and historical classification intentionally block promotion. Required disclosures if reconsidered: the profile is embedding-free goodmemory-rules-only; the optional same-model gpt-5.5 semantic_judge contributes zero to the claimed 0.72; answers are generated by gpt-5.5, so judge-free refers only to scoring; and the historical 0.908 with-judge result is superseded."
   }
 }

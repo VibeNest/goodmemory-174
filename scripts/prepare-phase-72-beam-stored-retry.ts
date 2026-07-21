@@ -27,6 +27,7 @@ import {
   buildPhase63BeamEvidencePackContext,
 } from "./run-phase-63-beam-live-slice";
 import {
+  PHASE72_ANSWER_GATEWAY,
   PHASE72_INDEPENDENT_JUDGE_MODEL,
 } from "./phase-72-external-contracts";
 import { resolveRepoRootFromScriptUrl } from "./script-paths";
@@ -333,7 +334,9 @@ export async function preparePhase72BeamStoredRetry(
   });
   const runIdentity = buildOfficialRescoreRunIdentity({
     benchmark: "beam",
+    judgeGateway: PHASE72_ANSWER_GATEWAY,
     judgeModel: PHASE72_INDEPENDENT_JUDGE_MODEL,
+    judgeProvider: "openai",
     runId: options.officialRunId,
     sourceInputFingerprints,
     sourceInputs,

@@ -325,6 +325,133 @@ describe("generalized fusion through the recall engine", () => {
     ).toBe("generalized_fusion");
   });
 
+  it("honors a configured minRelativeStrength when trimming the fused candidate budget", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const projectionIndex = createRecallProjectionRuntime({
+      documentStore: rawStore,
+      now: () => "2026-07-10T00:00:00.000Z",
+    });
+    const sessionStore = createInMemorySessionStore();
+    const repositories = createMemoryRepositories({
+      documentStore: projectionIndex.documentStore,
+      sessionStore,
+    });
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-strong",
+        ...scope,
+        category: "personal",
+        content: "A cup of tea helps Marco relax during quiet evenings.",
+        source: { method: "explicit", extractedAt: "2026-07-09T00:00:00.000Z" },
+        createdAt: "2026-07-09T00:00:00.000Z",
+        updatedAt: "2026-07-09T00:00:00.000Z",
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-weak",
+        ...scope,
+        category: "personal",
+        content: "Grocery planning happens during evenings.",
+        source: { method: "explicit", extractedAt: "2026-07-09T00:00:00.000Z" },
+        createdAt: "2026-07-09T00:00:00.000Z",
+        updatedAt: "2026-07-09T00:00:00.000Z",
+      }),
+    );
+    const recallInput = {
+      scope,
+      query: QUERY,
+      retrievalProfile: "general_chat" as const,
+    };
+    const permissive = await createRecallEngine({
+      repositories,
+      runtime: sessionStore,
+      autoStrategyBias: "hybrid",
+      generalizedFusion: { maxCandidates: 8 },
+      projectionIndex,
+    }).recall(recallInput);
+    const strict = await createRecallEngine({
+      repositories,
+      runtime: sessionStore,
+      autoStrategyBias: "hybrid",
+      generalizedFusion: { maxCandidates: 8, minRelativeStrength: 0.9 },
+      projectionIndex,
+    }).recall(recallInput);
+
+    const permissiveRun = permissive.metadata.retrievalTrace?.fusionRuns?.[0];
+    const strictRun = strict.metadata.retrievalTrace?.fusionRuns?.[0];
+    expect(permissiveRun?.candidateCount).toBe(2);
+    expect(permissiveRun?.budget).toBe(2);
+    expect(strictRun?.candidateCount).toBe(2);
+    expect(strictRun?.budget).toBe(1);
+  });
+
+  it("anchors temporal visibility to a per-call referenceTime", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const projectionIndex = createRecallProjectionRuntime({
+      documentStore: rawStore,
+      now: () => "2026-07-01T00:00:00.000Z",
+    });
+    const sessionStore = createInMemorySessionStore();
+    const repositories = createMemoryRepositories({
+      documentStore: projectionIndex.documentStore,
+      sessionStore,
+    });
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-window",
+        ...scope,
+        category: "personal",
+        content: "Lakeside cabin rentals are booked for evening relaxation.",
+        source: { method: "explicit", extractedAt: "2026-07-01T00:00:00.000Z" },
+        validUntil: "2026-07-05T00:00:00.000Z",
+        createdAt: "2026-07-01T00:00:00.000Z",
+        updatedAt: "2026-07-01T00:00:00.000Z",
+      }),
+    );
+    await repositories.facts.add(
+      createFactMemory({
+        id: "fact-evergreen",
+        ...scope,
+        category: "personal",
+        content: "Evening walks help with relaxation.",
+        source: { method: "explicit", extractedAt: "2026-07-01T00:00:00.000Z" },
+        createdAt: "2026-07-01T00:00:00.000Z",
+        updatedAt: "2026-07-01T00:00:00.000Z",
+      }),
+    );
+    const engine = createRecallEngine({
+      repositories,
+      runtime: sessionStore,
+      autoStrategyBias: "hybrid",
+      generalizedFusion: { maxCandidates: 8 },
+      projectionIndex,
+    });
+    const query = "What does the user do for evening relaxation?";
+
+    const beforeExpiry = await engine.recall({
+      scope,
+      query,
+      referenceTime: "2026-07-01T12:00:00.000Z",
+      retrievalProfile: "general_chat",
+    });
+    const afterExpiry = await engine.recall({
+      scope,
+      query,
+      referenceTime: "2026-07-10T00:00:00.000Z",
+      retrievalProfile: "general_chat",
+    });
+
+    const fusedIds = (result: typeof beforeExpiry): string[] =>
+      result.metadata.retrievalTrace?.fusionRuns?.[0]?.candidates.map(
+        (candidate) => candidate.sourceMemoryId,
+      ) ?? [];
+    expect(fusedIds(beforeExpiry)).toContain("fact-window");
+    expect(fusedIds(beforeExpiry)).toContain("fact-evergreen");
+    expect(fusedIds(afterExpiry)).not.toContain("fact-window");
+    expect(fusedIds(afterExpiry)).toContain("fact-evergreen");
+  });
+
   it("admits projected references, episodes, and archives through content lanes", async () => {
     const rawStore = createInMemoryDocumentStore();
     const projectionIndex = createRecallProjectionRuntime({
@@ -402,6 +529,70 @@ describe("generalized fusion through the recall engine", () => {
           ?.fallback,
       ).toBe("generalized_fusion");
     }
+  });
+
+  it("honors configured content-lane record quotas for fused episodes", async () => {
+    const rawStore = createInMemoryDocumentStore();
+    const projectionIndex = createRecallProjectionRuntime({
+      documentStore: rawStore,
+      now: () => "2026-07-10T00:00:00.000Z",
+    });
+    const sessionStore = createInMemorySessionStore();
+    const repositories = createMemoryRepositories({
+      documentStore: projectionIndex.documentStore,
+      sessionStore,
+    });
+    for (const [index, summary] of [
+      "The Nebula escalation checklist was drafted in the first session.",
+      "The Nebula escalation checklist gained an approval step.",
+      "The Nebula escalation checklist still needs a final signoff.",
+    ].entries()) {
+      await repositories.episodes.add(
+        createEpisodeMemory({
+          id: `episode-nebula-${index}`,
+          ...scope,
+          summary,
+          createdAt: "2026-07-09T00:00:00.000Z",
+        }),
+      );
+    }
+    const query = "Where does the Nebula escalation checklist stand?";
+    const recallInput = {
+      scope,
+      query,
+      retrievalProfile: "general_chat" as const,
+    };
+
+    const defaultQuota = await createRecallEngine({
+      repositories,
+      runtime: sessionStore,
+      autoStrategyBias: "hybrid",
+      generalizedFusion: { maxCandidates: 8 },
+      projectionIndex,
+    }).recall(recallInput);
+    const widened = await createRecallEngine({
+      repositories,
+      runtime: sessionStore,
+      autoStrategyBias: "hybrid",
+      generalizedFusion: {
+        contentLaneRecords: { episodes: 3 },
+        maxCandidates: 8,
+      },
+      projectionIndex,
+    }).recall(recallInput);
+
+    const fusedEpisodeIds = (result: typeof widened): string[] =>
+      result.episodes
+        .map(({ id }) => id)
+        .filter((id) => id.startsWith("episode-nebula-"));
+    // The default lane quota stays at 2 fused episodes.
+    expect(fusedEpisodeIds(defaultQuota).length).toBeLessThanOrEqual(2);
+    // A configured quota admits the third fused episode.
+    expect(fusedEpisodeIds(widened).sort()).toEqual([
+      "episode-nebula-0",
+      "episode-nebula-1",
+      "episode-nebula-2",
+    ]);
   });
 
   it("feeds provider dense reference and episode channels into generalized fusion", async () => {

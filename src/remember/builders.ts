@@ -183,12 +183,36 @@ export function resolveReferenceSubject(
   return "unknown";
 }
 
+// Earliest parseable observation time across the candidate's cited source
+// messages. Bulk/backfill ingestion can run long after the conversation
+// happened; this keeps the session's event time on the durable record.
+export function resolveCandidateObservedAt(
+  candidate: ClassifiedCandidate,
+  messages: readonly { observedAt?: string }[],
+): string | undefined {
+  const indexes = candidate.sourceMessageIndexes?.length
+    ? candidate.sourceMessageIndexes
+    : [candidate.sourceMessageIndex];
+  let earliest: number | undefined;
+  for (const index of indexes) {
+    const observedAt = messages[index]?.observedAt;
+    if (!observedAt) continue;
+    const parsed = Date.parse(observedAt);
+    if (!Number.isFinite(parsed)) continue;
+    if (earliest === undefined || parsed < earliest) {
+      earliest = parsed;
+    }
+  }
+  return earliest === undefined ? undefined : new Date(earliest).toISOString();
+}
+
 export function buildFact(
   scope: ScopedIdentity,
   candidate: ClassifiedCandidate,
   id: string,
   timestamp: string,
   locale: string,
+  observedAt?: string,
 ): FactMemory {
   return createFactMemory({
     id,
@@ -209,6 +233,7 @@ export function buildFact(
     factKind: candidate.metadata?.factKind,
     scopeKind: candidate.metadata?.scopeKind,
     subject: candidate.metadata?.subject ?? "unknown",
+    observedAt,
     validFrom: candidate.metadata?.claim?.validFrom,
     validUntil: candidate.metadata?.claim?.validUntil,
     createdAt: timestamp,

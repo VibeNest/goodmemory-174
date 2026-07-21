@@ -14,12 +14,16 @@ cross-benchmark live evaluation has not run.
   the sixth. Every reader input is actually truncated to the frozen 6,000-token
   counter budget; artifacts record pre/post counts and only IDs whose evidence
   is visible. `src/eval/runIdentity.ts` freezes model, dataset, real prompt, and
-  configuration identity without persisting API keys.
+  configuration identity without persisting API keys or credential-derived
+  fingerprints. Rotating an API key therefore does not change experiment
+  identity.
 - `src/eval/phase74Datasets.ts` adapts the complete pinned LongMemEval-S and
   LoCoMo sources into one label-separated case contract. Retrieval receives
-  only the query, scope, reference time, and raw messages; expected answers,
-  gold evidence, question types, categories, and protocol metadata remain on
-  the evaluation side. Download preparation verifies the immutable source
+  only the query, scope, reference time, and raw messages; benchmark case,
+  session, evidence, and source IDs are replaced with semantic opaque aliases.
+  Expected answers, gold evidence, question types, categories, protocol
+  metadata, and raw benchmark IDs remain on the evaluation side. Download
+  preparation verifies the immutable source
   SHA-256 before creating an output root, then freezes the normalized
   fingerprint, adapted-case digest, selected-case digest, source revision, and
   population counts in a manifest. LoCoMo preparation retains the 1,226 image
@@ -69,7 +73,10 @@ cross-benchmark live evaluation has not run.
   accounting, not a pre-request write-ahead protocol.
 - The full experimental adapter pins every non-judge language call to
   `gpt-5.6-terra` through the GurkiAI gateway and keeps the independent judge on
-  `gpt-5.5`. It verifies that the declared commit equals the actual Git HEAD and
+  `gpt-5.5`. LongMemEval scoring uses the pinned upstream prompts, but gpt-5.5
+  is outside that evaluator's model zoo; the resulting paired accuracy is
+  official-prompt-compatible and is not directly comparable to published
+  official scores. It verifies that the declared commit equals the actual Git HEAD and
   that the declared source SHA equals a deterministic snapshot of the complete
   `src` TypeScript tree, runner/preparation/aggregation/scale scripts, package
   manifest, and lockfile before a live run may start. Assisted extraction,
@@ -108,14 +115,12 @@ cross-benchmark live evaluation has not run.
 ## Verification completed
 
 - `bun run typecheck`: passed.
-- The final focused provider, dataset, checkpoint, ClaimProjection, fusion,
-  EvidenceLedger, oracle, hierarchical inference, artifact aggregation,
-  promotion-gate, compaction, SQLite, runner, and eval-boundary sweep covered 45
-  files: 443 passed, 0 failed, with 1,522 assertions.
-- The final canonical `bun test` sweep completed 4,152 tests across 491 files in
-  1,776.90 seconds: 4,152 passed, 0 failed, with 13 snapshots and 21,446
-  assertions. This run included the real configured PostgreSQL API and pgvector
-  integration cases.
+- The current scoring, selection, dataset, product-boundary, aggregation,
+  rescore, concurrent version-baseline, and public-claim focused sweep passed
+  111 tests across 10 files with 477 assertions and zero failures.
+- The current canonical `bun test` sweep passed with exit code zero. The strict
+  public-claim gate also reports five consistent declarations and zero
+  over-claiming.
 - `bun test tests/unit/runtime.context-service.test.ts tests/unit/runtime.public.test.ts tests/integration/recall.api.test.ts`:
   70 passed, 0 failed.
 - Claim projection, EvidenceLedger, projection API, generalized fusion,
@@ -183,8 +188,13 @@ generation, mixes the judge into product cost, or uses a different cost
 boundary; call counts or manually entered averages are not accepted.
 `scripts/aggregate-phase-74-generalization.ts` then validates the complete two
 family by three replicate artifact matrix, recomputes all identity/population
-digests, derives per-case deltas, p95 latency, usage, and the hierarchical
-statistics, and invokes the promotion gate only when the evidence is complete.
+digests, and admits only the canonical dataset manifest, protocol scorer,
+provider pointwise reranker, and content-hash selection contract. Legacy
+identities, deterministic rerankers, and non-canonical scorers fail admission.
+A selected subset carries a subset-consistent manifest and can be aggregated
+as diagnostic evidence, but it cannot pass product promotion. The aggregator
+derives per-case deltas, p95 latency, usage, and the hierarchical statistics,
+and invokes the promotion gate only when the evidence is complete.
 For E4 it excludes any format that regresses a frozen protection set by more
 than 1pp, compares cross-family macro scores, and uses average context tokens as
 the tie-break within 1pp of the best eligible score.
@@ -196,7 +206,9 @@ matrix, one label-free generic reader for the first five oracle arms, immutable
 run identity, exact final-context measurement through an injected counter, and
 per-case failure retention. E1-E3 run the same generic reader and independent
 judge for every arm after retrieval; product inputs never receive family,
-expected answer, gold evidence, or protocol metadata. The report keeps semantic
+raw benchmark case/session/evidence/source IDs, expected answer, gold evidence,
+or protocol metadata. Full-run selection hashes only the opaque semantic case
+key; suffixes such as LongMemEval `_abs` stay outside admission. The report keeps semantic
 correctness separate from the frozen family score. E4 reuses the frozen
 deterministic E3 retrieval snapshot, so formatting does not rerun retrieval.
 The executable smoke path is:

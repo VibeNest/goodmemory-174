@@ -132,6 +132,11 @@ export interface FactMemory {
   lastAccessedAt?: string;
   verificationPressureCount?: number;
   lastVerificationHintAt?: string;
+  // Event time: when the fact was observed/stated in its source conversation
+  // (earliest cited source message). Distinct from transaction time
+  // (createdAt/updatedAt) and from the validity window below — a fact ingested
+  // in bulk months later keeps the session date here.
+  observedAt?: string;
   // Bi-temporal validity window in event/world time (distinct from createdAt /
   // updatedAt, which are transaction time) plus an optional hard TTL. When
   // validUntil or expiresAt is at/before the reference time, the opt-in
@@ -374,6 +379,7 @@ export function createFactMemory(
     lastAccessedAt: input.lastAccessedAt,
     verificationPressureCount: input.verificationPressureCount ?? 0,
     lastVerificationHintAt: input.lastVerificationHintAt,
+    observedAt: input.observedAt,
     validFrom: input.validFrom,
     validUntil: input.validUntil,
     expiresAt: input.expiresAt,

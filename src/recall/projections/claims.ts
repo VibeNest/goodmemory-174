@@ -259,6 +259,133 @@ export function createClaimProjectionIndex(
     }
   }
 
+  function normalizeClaimObjectText(value: string): string {
+    return value.normalize("NFKC").trim().toLocaleLowerCase("en-US");
+  }
+
+  // Structural bi-temporal supersession: when a newly projected claim occupies
+  // the same (subjectEntityId, predicateKey) slot as an older current claim
+  // from a different source with an earlier observation and a different value,
+  // close the older claim's validity window at the newer observation instead
+  // of leaving two open "current" values. Invalidate, never delete: the closed
+  // claim stays queryable for history/change aggregations. The generic
+  // deterministic namespace ("fact.*") has unknown cardinality (several
+  // blockers can be true at once), so only structured extractor predicates
+  // participate; negations and non-asserted modalities never close anything.
+  async function resolveSlotSupersession(
+    claim: ClaimProjection,
+    scope: MemoryScope,
+  ): Promise<
+    | {
+        delete: Array<{ collection: string; id: string }>;
+        set: Array<{
+          collection: string;
+          document: StorageDocument;
+          id: string;
+        }>;
+        unchanged: Array<{
+          collection: string;
+          document: StorageDocument | null;
+          id: string;
+        }>;
+      }
+    | undefined
+  > {
+    if (
+      claim.predicateKey.startsWith("fact.") ||
+      claim.polarity !== "positive" ||
+      claim.modality !== "asserted"
+    ) {
+      return undefined;
+    }
+    const slotClaims = await documentStore.query<ClaimProjection>(
+      CLAIM_PROJECTIONS_COLLECTION,
+      {
+        predicateKey: claim.predicateKey,
+        scopeKey: claim.scopeKey,
+        subjectEntityId: claim.subjectEntityId,
+      },
+    );
+    const newValue = normalizeClaimObjectText(claim.objectText);
+    const set: Array<{
+      collection: string;
+      document: StorageDocument;
+      id: string;
+    }> = [];
+    const unchanged: Array<{
+      collection: string;
+      document: StorageDocument | null;
+      id: string;
+    }> = [];
+    const removals: Array<{ collection: string; id: string }> = [];
+    const closedSources = new Set<string>();
+    for (const older of slotClaims) {
+      if (
+        older.sourceMemoryId === claim.sourceMemoryId ||
+        closedSources.has(older.sourceMemoryId) ||
+        older.validUntil !== undefined ||
+        older.polarity !== "positive" ||
+        older.observedAt.localeCompare(claim.observedAt) >= 0 ||
+        normalizeClaimObjectText(older.objectText) === newValue
+      ) {
+        continue;
+      }
+      const statusId = buildClaimProjectionStatusId(
+        scope,
+        older.sourceMemoryId,
+      );
+      const olderStatus = await documentStore.get<ClaimProjectionStatus>(
+        CLAIM_PROJECTION_STATUS_COLLECTION,
+        statusId,
+      );
+      if (!olderStatus || !olderStatus.claimIds.includes(older.id)) {
+        continue;
+      }
+      closedSources.add(older.sourceMemoryId);
+      const { id: _olderId, ...olderWithoutId } = older;
+      const closedWithoutId: Omit<ClaimProjection, "id"> = {
+        ...olderWithoutId,
+        validUntil: claim.observedAt,
+        ingestedAt: claim.ingestedAt,
+      };
+      const closed: ClaimProjection = {
+        id: projectionId(closedWithoutId),
+        ...closedWithoutId,
+      };
+      set.push(
+        {
+          collection: CLAIM_PROJECTIONS_COLLECTION,
+          document: closed,
+          id: closed.id,
+        },
+        {
+          collection: CLAIM_PROJECTION_STATUS_COLLECTION,
+          document: {
+            ...olderStatus,
+            claimIds: olderStatus.claimIds.map((claimId) =>
+              claimId === older.id ? closed.id : claimId
+            ),
+            updatedAt: claim.ingestedAt,
+          },
+          id: statusId,
+        },
+      );
+      unchanged.push({
+        collection: CLAIM_PROJECTION_STATUS_COLLECTION,
+        document: olderStatus,
+        id: statusId,
+      });
+      removals.push({
+        collection: CLAIM_PROJECTIONS_COLLECTION,
+        id: older.id,
+      });
+    }
+    if (set.length === 0) {
+      return undefined;
+    }
+    return { delete: removals, set, unchanged };
+  }
+
   async function append(
     input: AppendClaimProjectionInput,
     state: ClaimProjectionState = "projected",
@@ -361,7 +488,11 @@ export function createClaimProjectionIndex(
         sourceUpdatedAt: input.ingestedAt,
         updatedAt: input.ingestedAt,
       };
+      const supersession = state === "projected"
+        ? await resolveSlotSupersession(claim, normalized)
+        : undefined;
       const committed = await documentStore.writeBatchIfUnchanged({
+        ...(supersession ? { delete: supersession.delete } : {}),
         expected: {
           collection: "facts",
           id: sourceFact.id,
@@ -378,12 +509,16 @@ export function createClaimProjectionIndex(
             id: status.id,
             document: status,
           },
+          ...(supersession?.set ?? []),
         ],
-        unchanged: [{
-          collection: CLAIM_PROJECTION_STATUS_COLLECTION,
-          document: existingStatus,
-          id,
-        }],
+        unchanged: [
+          {
+            collection: CLAIM_PROJECTION_STATUS_COLLECTION,
+            document: existingStatus,
+            id,
+          },
+          ...(supersession?.unchanged ?? []),
+        ],
       });
       if (committed) return claim;
     }
@@ -462,7 +597,10 @@ export function createClaimProjectionIndex(
         validUntil,
         confidence: fact.confidence,
       },
-      observedAt: fact.validFrom ?? fact.source.extractedAt ?? fact.createdAt,
+      // Prefer event time over transaction time: explicit validity start, then
+      // the source-message observation time, then extraction wall clock.
+      observedAt: fact.validFrom ?? fact.observedAt ?? fact.source.extractedAt ??
+        fact.createdAt,
       ingestedAt: fact.updatedAt,
       evidenceIds,
       sourceMessageIds,

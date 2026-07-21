@@ -24,8 +24,11 @@ import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import {
   buildLongMemEvalOfficialJudgePrompt,
-  LONGMEMEVAL_OFFICIAL_METRIC_MODELS,
+  findLongMemEvalOfficialEvaluatorAlias,
+  LONGMEMEVAL_OFFICIAL_PROMPT_SHA256,
+  LONGMEMEVAL_OFFICIAL_SCORER_IDENTITY,
 } from "../src/eval/longmemevalOfficialScorer";
+import type { EvalRunModelIdentity } from "../src/eval/runIdentity";
 import {
   parseCliPositiveIntegerFlagStrict,
   resolveCliFlagValueStrict,
@@ -70,9 +73,12 @@ const OFFICIAL_RESCORE_SOURCE_INPUT_FINGERPRINT_KEY_SET: ReadonlySet<string> =
 const OFFICIAL_RESCORE_RUN_IDENTITY_KEY_SET: ReadonlySet<string> = new Set([
   "benchmark",
   "generatedBy",
+  "judgeGateway",
   "judgeModel",
+  "judgeProvider",
   "limit",
   "runId",
+  "scorerSource",
   "sourceAnswersUnchanged",
   "sourceInputFingerprints",
   "sourceInputs",
@@ -91,12 +97,15 @@ const OFFICIAL_RESCORE_SUMMARY_COMMON_KEY_SET: ReadonlySet<string> = new Set([
   "generatedAt",
   "generatedBy",
   "judgeFailures",
+  "judgeGateway",
   "judgeModel",
+  "judgeProvider",
   "limit",
   "limitUnit",
   "outputPath",
   "protocol",
   "runId",
+  "scorerSource",
   "sourceAnswersUnchanged",
   "sourceInputFingerprints",
   "sourceInputs",
@@ -175,7 +184,9 @@ type OfficialRescoreScopeInput =
 interface OfficialRescoreMetadataInput {
   benchmark: OfficialRescoreBenchmark;
   generatedAt: string;
+  judgeGateway: string;
   judgeModel: string | undefined;
+  judgeProvider: string;
   limit?: number;
   outputPath: string;
   runId: string;
@@ -187,13 +198,24 @@ interface OfficialRescoreMetadataInput {
 export interface OfficialRescoreRunIdentity {
   benchmark: OfficialRescoreBenchmark;
   generatedBy: "scripts/rescore-official-protocols.ts";
+  judgeGateway: string;
   judgeModel: string | undefined;
+  judgeProvider: string;
   limit?: number;
   runId: string;
+  scorerSource: OfficialRescoreScorerSourceIdentity | null;
   sourceInputFingerprints: OfficialRescoreSourceInputFingerprints;
   sourceInputs: OfficialRescoreSourceInputs;
   sourceProfile?: string;
   sourceAnswersUnchanged: true;
+}
+
+export interface OfficialRescoreScorerSourceIdentity {
+  commit: string;
+  fileSha256: string;
+  path: string;
+  promptSha256: string;
+  repository: string;
 }
 
 export interface OfficialRescoreJudgeCase {
@@ -224,21 +246,33 @@ const repoRoot = resolveRepoRootFromScriptUrl(import.meta.url);
 
 export function buildOfficialRescoreClaimBoundary(
   benchmark: OfficialRescoreBenchmark,
-  judgeModel: string | undefined,
+  judge: EvalRunModelIdentity | null,
 ): string {
   if (benchmark !== "longmemeval") {
     return "Official/industry-prompt-compatible stored-answer rescore; numeric comparability is benchmark-specific and requires a matching pinned evaluator configuration; not answer regeneration or a public benchmark claim.";
   }
-  if (
-    judgeModel !== undefined &&
-    LONGMEMEVAL_OFFICIAL_METRIC_MODELS.some((model) => model === judgeModel)
-  ) {
-    return "Official LongMemEval prompt and pinned evaluator-model stored-answer rescore; published-score comparison still requires the remaining benchmark configuration to match; not answer regeneration or a public benchmark claim.";
+  if (judge !== null && findLongMemEvalOfficialEvaluatorAlias(judge) !== null) {
+    return "Pinned-upstream LongMemEval prompt and evaluator-identity stored-answer rescore; published-score comparison still requires the remaining benchmark configuration to match; not answer regeneration or a public benchmark claim.";
   }
-  const modelBoundary = judgeModel === undefined
-    ? "the judge model is unspecified"
-    : `judge model ${judgeModel} is outside the pinned evaluator model zoo`;
-  return `Official-prompt-compatible LongMemEval stored-answer rescore; ${modelBoundary}, so the score is not directly comparable to published official scores; not answer regeneration or a public benchmark claim.`;
+  const modelBoundary = judge === null
+    ? "the evaluator identity is incomplete"
+    : `evaluator ${judge.provider}/${judge.model} at ${judge.gateway} does not match a pinned upstream evaluator identity`;
+  return `Pinned-prompt-compatible LongMemEval stored-answer rescore; ${modelBoundary}, so the score is not directly comparable to published official scores; not answer regeneration or a public benchmark claim.`;
+}
+
+function officialRescoreScorerSource(
+  benchmark: OfficialRescoreBenchmark,
+): OfficialRescoreScorerSourceIdentity | null {
+  if (benchmark !== "longmemeval") {
+    return null;
+  }
+  return {
+    commit: LONGMEMEVAL_OFFICIAL_SCORER_IDENTITY.commit,
+    fileSha256: LONGMEMEVAL_OFFICIAL_SCORER_IDENTITY.fileSha256,
+    path: LONGMEMEVAL_OFFICIAL_SCORER_IDENTITY.path,
+    promptSha256: LONGMEMEVAL_OFFICIAL_PROMPT_SHA256,
+    repository: LONGMEMEVAL_OFFICIAL_SCORER_IDENTITY.repository,
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -346,13 +380,17 @@ function isOfficialRescoreRunIdentity(
   return (
     isOfficialRescoreBenchmark(value.benchmark) &&
     value.generatedBy === "scripts/rescore-official-protocols.ts" &&
+    isNonEmptyUnpaddedString(value.judgeGateway) &&
     (value.judgeModel === undefined ||
       isNonEmptyUnpaddedString(value.judgeModel)) &&
+    isNonEmptyUnpaddedString(value.judgeProvider) &&
     (value.limit === undefined ||
       (typeof value.limit === "number" &&
         Number.isInteger(value.limit) &&
         value.limit > 0)) &&
     isNonEmptyUnpaddedString(value.runId) &&
+    JSON.stringify(value.scorerSource) ===
+      JSON.stringify(officialRescoreScorerSource(value.benchmark)) &&
     value.sourceAnswersUnchanged === true &&
     isOfficialRescoreSourceInputFingerprints(value.sourceInputFingerprints) &&
     isOfficialRescoreSourceInputs(value.sourceInputs) &&
@@ -465,7 +503,9 @@ export function buildOfficialRescoreScopeMetadata(
 
 export function buildOfficialRescoreRunIdentity(input: {
   benchmark: OfficialRescoreBenchmark;
+  judgeGateway: string;
   judgeModel: string | undefined;
+  judgeProvider: string;
   limit?: number;
   runId: string;
   sourceInputFingerprints: OfficialRescoreSourceInputFingerprints;
@@ -475,9 +515,12 @@ export function buildOfficialRescoreRunIdentity(input: {
   return {
     benchmark: input.benchmark,
     generatedBy: "scripts/rescore-official-protocols.ts",
+    judgeGateway: input.judgeGateway,
     judgeModel: input.judgeModel,
+    judgeProvider: input.judgeProvider,
     ...(input.limit === undefined ? {} : { limit: input.limit }),
     runId: input.runId,
+    scorerSource: officialRescoreScorerSource(input.benchmark),
     sourceAnswersUnchanged: true,
     sourceInputFingerprints: input.sourceInputFingerprints,
     sourceInputs: input.sourceInputs,
@@ -502,6 +545,15 @@ export function assertOfficialRescoreRunIdentityCompatible(
   }
   if (existing.judgeModel !== expected.judgeModel) {
     throw new Error("official rescore run identity changed: judgeModel");
+  }
+  if (existing.judgeGateway !== expected.judgeGateway) {
+    throw new Error("official rescore run identity changed: judgeGateway");
+  }
+  if (existing.judgeProvider !== expected.judgeProvider) {
+    throw new Error("official rescore run identity changed: judgeProvider");
+  }
+  if (JSON.stringify(existing.scorerSource) !== JSON.stringify(expected.scorerSource)) {
+    throw new Error("official rescore run identity changed: scorerSource");
   }
   if (existing.limit !== expected.limit) {
     throw new Error("official rescore run identity changed: limit");
@@ -530,15 +582,24 @@ export function buildOfficialRescoreMetadata(
     benchmark: input.benchmark,
     claimBoundary: buildOfficialRescoreClaimBoundary(
       input.benchmark,
-      input.judgeModel,
+      input.judgeModel === undefined
+        ? null
+        : {
+            gateway: input.judgeGateway,
+            model: input.judgeModel,
+            provider: input.judgeProvider,
+          },
     ),
     generatedAt: input.generatedAt,
     generatedBy: "scripts/rescore-official-protocols.ts",
+    judgeGateway: input.judgeGateway,
     judgeModel: input.judgeModel,
+    judgeProvider: input.judgeProvider,
     limit: input.limit ?? null,
     limitUnit: officialRescoreLimitUnit(input.benchmark),
     outputPath: input.outputPath,
     runId: input.runId,
+    scorerSource: officialRescoreScorerSource(input.benchmark),
     sourceAnswersUnchanged: true,
     sourceInputFingerprints: input.sourceInputFingerprints,
     sourceInputs: input.sourceInputs,
@@ -568,7 +629,15 @@ export function validateOfficialRescoreSummary(value: unknown): string[] {
   if (
     isNonEmptyUnpaddedString(value.judgeModel) &&
     value.claimBoundary !==
-      buildOfficialRescoreClaimBoundary(benchmark, value.judgeModel)
+      buildOfficialRescoreClaimBoundary(benchmark, {
+        gateway: isNonEmptyUnpaddedString(value.judgeGateway)
+          ? value.judgeGateway
+          : "",
+        model: value.judgeModel,
+        provider: isNonEmptyUnpaddedString(value.judgeProvider)
+          ? value.judgeProvider
+          : "",
+      })
   ) {
     errors.push(
       "claimBoundary must match benchmark and judge-model comparability",
@@ -582,6 +651,18 @@ export function validateOfficialRescoreSummary(value: unknown): string[] {
   }
   if (!isNonEmptyUnpaddedString(value.judgeModel)) {
     errors.push("judgeModel must be a non-empty unpadded string");
+  }
+  if (!isNonEmptyUnpaddedString(value.judgeGateway)) {
+    errors.push("judgeGateway must be a non-empty unpadded string");
+  }
+  if (!isNonEmptyUnpaddedString(value.judgeProvider)) {
+    errors.push("judgeProvider must be a non-empty unpadded string");
+  }
+  if (
+    JSON.stringify(value.scorerSource) !==
+      JSON.stringify(officialRescoreScorerSource(benchmark))
+  ) {
+    errors.push("scorerSource must match the pinned benchmark scorer source");
   }
   if (
     !(
@@ -1581,6 +1662,9 @@ async function loadLocomoCases(input: {
 async function runBeamRubricRescore(input: {
   concurrency: number;
   generatedAt: string;
+  judgeGateway: string;
+  judgeModel: string;
+  judgeProvider: string;
   limit?: number;
   outputDir: string;
   progressPath: string;
@@ -1729,7 +1813,9 @@ async function runBeamRubricRescore(input: {
     ...buildOfficialRescoreMetadata({
       benchmark: "beam",
       generatedAt: input.generatedAt,
-      judgeModel: process.env.GOODMEMORY_JUDGE_MODEL,
+      judgeGateway: input.judgeGateway,
+      judgeModel: input.judgeModel,
+      judgeProvider: input.judgeProvider,
       limit: input.limit,
       outputPath: summaryPath,
       runId: input.runId,
@@ -1837,6 +1923,8 @@ async function main(): Promise<void> {
   const runIdentityPath = join(outputDir, "run-identity.json");
   const progressPath = join(outputDir, "progress.jsonl");
   const judgeModel = judgeEnv.model;
+  const judgeGateway = judgeEnv.baseURL;
+  const judgeProvider = "openai";
 
   let judgePrompt: (c: OfficialRescoreJudgeCase) => {
     maxTokens: number;
@@ -1925,7 +2013,9 @@ async function main(): Promise<void> {
       progressPath,
       buildOfficialRescoreRunIdentity({
         benchmark,
+        judgeGateway,
         judgeModel,
+        judgeProvider,
         limit,
         runId,
         sourceInputFingerprints,
@@ -1935,6 +2025,9 @@ async function main(): Promise<void> {
     await runBeamRubricRescore({
       concurrency,
       generatedAt,
+      judgeGateway,
+      judgeModel,
+      judgeProvider,
       limit,
       outputDir,
       progressPath,
@@ -1951,7 +2044,9 @@ async function main(): Promise<void> {
     progressPath,
     buildOfficialRescoreRunIdentity({
       benchmark,
+      judgeGateway,
       judgeModel,
+      judgeProvider,
       limit,
       runId,
       sourceInputFingerprints,
@@ -2047,7 +2142,9 @@ async function main(): Promise<void> {
     ...buildOfficialRescoreMetadata({
       benchmark,
       generatedAt,
-      judgeModel: process.env.GOODMEMORY_JUDGE_MODEL,
+      judgeGateway,
+      judgeModel,
+      judgeProvider,
       limit,
       outputPath: summaryPath,
       runId,

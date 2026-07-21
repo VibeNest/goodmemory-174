@@ -28,6 +28,14 @@ import {
   validateOfficialRescoreSummary,
 } from "../../scripts/rescore-official-protocols";
 
+function judgeIdentity(model: string) {
+  return {
+    judgeGateway: "https://judge.example/v1",
+    judgeModel: model,
+    judgeProvider: "openai",
+  };
+}
+
 describe("official protocol rescore CLI", () => {
   it("parses a canonical benchmark rescore command", () => {
     expect(
@@ -304,7 +312,7 @@ describe("official protocol rescore CLI", () => {
       buildOfficialRescoreMetadata({
         benchmark: "beam",
         generatedAt: "2026-07-05T16:10:00.000Z",
-        judgeModel: "gpt-5.4-mini",
+        ...judgeIdentity("gpt-5.4-mini"),
         limit: 25,
         outputPath:
           "/repo/reports/eval/research/official-rescore/beam-current/rescore-summary.json",
@@ -330,12 +338,15 @@ describe("official protocol rescore CLI", () => {
         "Official/industry-prompt-compatible stored-answer rescore; numeric comparability is benchmark-specific and requires a matching pinned evaluator configuration; not answer regeneration or a public benchmark claim.",
       generatedAt: "2026-07-05T16:10:00.000Z",
       generatedBy: "scripts/rescore-official-protocols.ts",
+      judgeGateway: "https://judge.example/v1",
       judgeModel: "gpt-5.4-mini",
+      judgeProvider: "openai",
       limit: 25,
       limitUnit: "rubric-items",
       outputPath:
         "/repo/reports/eval/research/official-rescore/beam-current/rescore-summary.json",
       runId: "beam-current",
+      scorerSource: null,
       sourceAnswersUnchanged: true,
       sourceInputFingerprints: {
         reportPath: {
@@ -357,7 +368,7 @@ describe("official protocol rescore CLI", () => {
       buildOfficialRescoreMetadata({
         benchmark: "locomo",
         generatedAt: "2026-07-05T16:20:00.000Z",
-        judgeModel: "gpt-5.4-mini",
+        ...judgeIdentity("gpt-5.4-mini"),
         outputPath:
           "/repo/reports/eval/research/official-rescore/locomo-current/rescore-summary.json",
         runId: "locomo-current",
@@ -373,7 +384,7 @@ describe("official protocol rescore CLI", () => {
       buildOfficialRescoreMetadata({
         benchmark: "locomo",
         generatedAt: "2026-07-05T16:20:00.000Z",
-        judgeModel: "gpt-5.4-mini",
+        ...judgeIdentity("gpt-5.4-mini"),
         outputPath:
           "/repo/reports/eval/research/official-rescore/locomo-current/rescore-summary.json",
         runId: "locomo-current",
@@ -389,7 +400,7 @@ describe("official protocol rescore CLI", () => {
       buildOfficialRescoreMetadata({
         benchmark: "longmemeval",
         generatedAt: "2026-07-13T22:00:00.000Z",
-        judgeModel: "gpt-5.4",
+        ...judgeIdentity("gpt-5.4"),
         outputPath: "/reports/official/rescore-summary.json",
         runId: "longmemeval-recommended-current",
         sourceInputFingerprints: {},
@@ -401,7 +412,7 @@ describe("official protocol rescore CLI", () => {
       }),
     ).toMatchObject({
       claimBoundary:
-        "Official-prompt-compatible LongMemEval stored-answer rescore; judge model gpt-5.4 is outside the pinned evaluator model zoo, so the score is not directly comparable to published official scores; not answer regeneration or a public benchmark claim.",
+        "Pinned-prompt-compatible LongMemEval stored-answer rescore; evaluator openai/gpt-5.4 at https://judge.example/v1 does not match a pinned upstream evaluator identity, so the score is not directly comparable to published official scores; not answer regeneration or a public benchmark claim.",
       sourceProfile: "goodmemory-recommended",
     });
   });
@@ -428,7 +439,7 @@ describe("official protocol rescore CLI", () => {
       ...buildOfficialRescoreMetadata({
         benchmark: "locomo",
         generatedAt: "2026-07-06T02:48:27.294Z",
-        judgeModel: "gpt-5.4",
+        ...judgeIdentity("gpt-5.4"),
         outputPath:
           "/repo/reports/eval/research/official-rescore/locomo-current/rescore-summary.json",
         runId: "locomo-current",
@@ -473,7 +484,7 @@ describe("official protocol rescore CLI", () => {
       ...buildOfficialRescoreMetadata({
         benchmark: "beam",
         generatedAt: "2026-07-06T02:48:36.219Z",
-        judgeModel: "gpt-5.4",
+        ...judgeIdentity("gpt-5.4"),
         outputPath:
           "/repo/reports/eval/research/official-rescore/beam-current/rescore-summary.json",
         runId: "beam-current",
@@ -548,7 +559,7 @@ describe("official protocol rescore CLI", () => {
       ...buildOfficialRescoreMetadata({
         benchmark: "longmemeval",
         generatedAt: "2026-07-06T02:48:27.294Z",
-        judgeModel: "gpt-5.4",
+        ...judgeIdentity("gpt-5.4"),
         outputPath:
           "/repo/reports/eval/research/official-rescore/longmemeval-current/rescore-summary.json",
         runId: "longmemeval-current",
@@ -601,7 +612,7 @@ describe("official protocol rescore CLI", () => {
       ...buildOfficialRescoreMetadata({
         benchmark: "locomo",
         generatedAt: "2026-07-06T02:48:27.294Z",
-        judgeModel: "gpt-5.4",
+        ...judgeIdentity("gpt-5.4"),
         outputPath:
           "/repo/reports/eval/research/official-rescore/locomo-current/rescore-summary.json",
         runId: "locomo-current",
@@ -647,7 +658,7 @@ describe("official protocol rescore CLI", () => {
       ...buildOfficialRescoreMetadata({
         benchmark: "beam",
         generatedAt: "2026-07-06T02:48:36.219Z",
-        judgeModel: "gpt-5.4",
+        ...judgeIdentity("gpt-5.4"),
         outputPath:
           "/repo/reports/eval/research/official-rescore/beam-current/rescore-summary.json",
         runId: "beam-current",
@@ -752,7 +763,7 @@ describe("official protocol rescore CLI", () => {
   it("rejects rescore progress cache identity drift", () => {
     const identity = buildOfficialRescoreRunIdentity({
       benchmark: "locomo",
-      judgeModel: "gpt-5.4-mini",
+      ...judgeIdentity("gpt-5.4-mini"),
       limit: 25,
       runId: "locomo-official-rescore-current",
       sourceInputFingerprints: {
@@ -778,6 +789,13 @@ describe("official protocol rescore CLI", () => {
         judgeModel: "gemini-flash",
       }),
     ).toThrow("official rescore run identity changed: judgeModel");
+
+    expect(() =>
+      assertOfficialRescoreRunIdentityCompatible(identity, {
+        ...identity,
+        judgeGateway: "https://other-gateway.example/v1",
+      }),
+    ).toThrow("official rescore run identity changed: judgeGateway");
 
     expect(() =>
       assertOfficialRescoreRunIdentityCompatible(identity, {
@@ -818,7 +836,7 @@ describe("official protocol rescore CLI", () => {
 
     const longMemEvalIdentity = buildOfficialRescoreRunIdentity({
       benchmark: "longmemeval",
-      judgeModel: "gpt-5.4",
+      ...judgeIdentity("gpt-5.4"),
       runId: "longmemeval-recommended-current",
       sourceInputFingerprints: {},
       sourceInputs: {
@@ -1028,7 +1046,7 @@ describe("official protocol rescore CLI", () => {
       const progressPath = join(root, "progress.jsonl");
       const identity = buildOfficialRescoreRunIdentity({
         benchmark: "locomo",
-        judgeModel: "gpt-5.4-mini",
+        ...judgeIdentity("gpt-5.4-mini"),
         runId: "locomo-official-rescore-current",
         sourceInputFingerprints: {
           reportPath: {
@@ -1066,7 +1084,7 @@ describe("official protocol rescore CLI", () => {
       const progressPath = join(root, "progress.jsonl");
       const identity = buildOfficialRescoreRunIdentity({
         benchmark: "locomo",
-        judgeModel: "gpt-5.4-mini",
+        ...judgeIdentity("gpt-5.4-mini"),
         runId: "locomo-official-rescore-current",
         sourceInputFingerprints: {
           reportPath: {
@@ -1161,7 +1179,7 @@ describe("official protocol rescore CLI", () => {
       const progressPath = join(root, "progress.jsonl");
       const identity = buildOfficialRescoreRunIdentity({
         benchmark: "longmemeval",
-        judgeModel: "gpt-5.4-mini",
+        ...judgeIdentity("gpt-5.4-mini"),
         runId: "longmemeval-official-rescore-current",
         sourceInputFingerprints: {
           referencePath: {

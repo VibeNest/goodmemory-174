@@ -3236,13 +3236,13 @@ describe("release metadata and docs", () => {
     expect(phase66Board).not.toContain("then-internal MAB/LoCoMo evidence");
     expect(phase66Board).not.toContain("then-internal MAB / LoCoMo numbers");
     expect(phase67Board).toContain(
-      "Current verdict after the ImplicitMemBench gpt-5.4 stored-answer rescore",
+      "Historical verdict after the ImplicitMemBench gpt-5.4 stored-answer rescore",
     );
     expect(phase67Board).toContain(
-      "BEAM, LoCoMo, LongMemEval, MemoryAgentBench, and",
+      "Phase 68 later superseded that boundary",
     );
     expect(phase67Board).toContain(
-      "ImplicitMemBench are public-claim candidates",
+      "versioned historical evidence under `benchmark-claims/*.json`",
     );
     expect(phase67Board).toContain(
       "implicitmembench-independent-rescore-gpt54-current",

@@ -279,8 +279,14 @@ export function createLanguageService(
       return contextAdapter(context, adapters).splitClauses(text);
     },
     tokenOverlap(left, right, context, options) {
-      const leftTokens = new Set(this.tokenize(left, context, options));
-      const rightTokens = new Set(this.tokenize(right, context, options));
+      // Naive Jaccard punishes longer token sets via its max denominator, so
+      // newly admitted short content tokens ("use", "run") would dilute every
+      // calibrated overlap score. The overlap signal therefore keeps the
+      // historical length-4 floor; short-token matching belongs to the
+      // BM25/fusion channels, which weight by IDF instead of set size.
+      const overlapOptions = { ...options, minTokenLength: 4 };
+      const leftTokens = new Set(this.tokenize(left, context, overlapOptions));
+      const rightTokens = new Set(this.tokenize(right, context, overlapOptions));
 
       if (leftTokens.size === 0 || rightTokens.size === 0) {
         return 0;

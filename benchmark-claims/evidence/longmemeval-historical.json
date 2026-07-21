@@ -1,0 +1,69 @@
+{
+  "artifactKind": "tracked-historical-evidence-projection",
+  "benchmark": "LongMemEval",
+  "generatedBy": "scripts/project-historical-evidence.ts",
+  "deterministicClaim": {
+    "baselineAccuracy": 0.068,
+    "executionFailures": 0,
+    "judgeFree": true,
+    "profile": "goodmemory-rules-only",
+    "score": 0.72,
+    "sourceCases": 500
+  },
+  "promptCompatibleDiagnostic": {
+    "claimBoundary": "The 0.888 stored-answer diagnostic used pinned LongMemEval prompts with gpt-5.4, but the historical artifact did not persist provider and gateway identity; it is not directly comparable to published official scores.",
+    "judgeFailures": 0,
+    "judgeModel": "gpt-5.4",
+    "overallAccuracy": 0.888,
+    "protocol": "official LongMemEval evaluate_qa.py anscheck prompts (temperature 0)",
+    "publishedScoreComparable": false,
+    "scorerSource": {
+      "commit": "9e0b455f4ef0e2ab8f2e582289761153549043fc",
+      "fileSha256": "ecce9c4c79dc89d99534ac17b383a5cbb5b9f0c69ee98adaf0684742e3d95251",
+      "path": "src/evaluation/evaluate_qa.py",
+      "promptSha256": "a3f4c27acbad0e06ad07d043b31e68a469a8a0f74938d89e21de193c04f58fe2",
+      "repository": "https://github.com/xiaowu0162/LongMemEval"
+    },
+    "selectedCases": 500,
+    "sourceAnswersUnchanged": true,
+    "sourceInputFingerprints": {
+      "referencePath": {
+        "bytes": 277383467,
+        "sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442"
+      },
+      "reportPath": {
+        "bytes": 610477,
+        "sha256": "553998854b05bcfb59e8fbf3840ef06a9cf604539d3ff6690d4cd8051b3e7c2e"
+      }
+    }
+  },
+  "scorerIdentity": {
+    "commit": "9e0b455f4ef0e2ab8f2e582289761153549043fc",
+    "fileSha256": "ecce9c4c79dc89d99534ac17b383a5cbb5b9f0c69ee98adaf0684742e3d95251",
+    "path": "src/evaluation/evaluate_qa.py",
+    "repository": "https://github.com/xiaowu0162/LongMemEval"
+  },
+  "schemaVersion": 1,
+  "sourceArtifacts": [
+    {
+      "bytes": 610477,
+      "path": "reports/eval/research/phase-62/longmemeval/run-phase67b-longmemeval-rules-deterministic-current/report.json",
+      "sha256": "553998854b05bcfb59e8fbf3840ef06a9cf604539d3ff6690d4cd8051b3e7c2e"
+    },
+    {
+      "bytes": 1550,
+      "path": "reports/eval/research/phase-62/longmemeval/run-phase67b-longmemeval-rules-deterministic-current-deterministic-subset/deterministic-subset.json",
+      "sha256": "e17c59f616655998485efa0b3c528938c0fe9795a6df1d5da9e4e63cebe06832"
+    },
+    {
+      "bytes": 2113,
+      "path": "reports/eval/research/official-rescore/rescore-longmemeval-official-judge/rescore-summary.json",
+      "sha256": "a00857380b6fb9bd7bc02039c13eb5a571b33b6cb8f578f30fc072e43b941046"
+    },
+    {
+      "bytes": 777,
+      "path": "reports/eval/research/official-rescore/rescore-longmemeval-official-judge/run-identity.json",
+      "sha256": "4edc00b8eb4635222b2e11627a14d79b9bf28c0a7df301629f87af39f8bed33c"
+    }
+  ]
+}
