@@ -98,19 +98,24 @@ describe("readClaudeTranscriptDelta", () => {
     ]);
   });
 
-  it("drops command-wrapped and trivially short user content", async () => {
+  it("drops host wrappers while preserving short non-empty user content", async () => {
     const path = await createTranscript([
       userLine("<command-name>/compact</command-name>"),
       userLine("<local-command-stdout>ok</local-command-stdout>"),
       userLine("<local-command-caveat>Caveat: local commands</local-command-caveat>"),
       userLine("<system-reminder>reminder</system-reminder>"),
       userLine("ok"),
+      userLine("請用繁體"),
+      userLine("日本語で"),
       userLine("Ship the fix tomorrow."),
     ]);
 
     const result = await readClaudeTranscriptDelta({ transcriptPath: path });
 
     expect(result.messages).toEqual([
+      { content: "ok", role: "user" },
+      { content: "請用繁體", role: "user" },
+      { content: "日本語で", role: "user" },
       { content: "Ship the fix tomorrow.", role: "user" },
     ]);
   });
@@ -268,6 +273,9 @@ describe("readCodexRolloutDelta", () => {
       ),
       rolloutLine("user", "<environment_context>cwd=/tmp</environment_context>"),
       rolloutLine("user", "<user_instructions>be terse</user_instructions>"),
+      rolloutLine("user", "ok"),
+      rolloutLine("user", "請用繁體"),
+      rolloutLine("user", "日本語で"),
     ]);
 
     const result = await readCodexRolloutDelta({ transcriptPath: path });
@@ -276,6 +284,9 @@ describe("readCodexRolloutDelta", () => {
     expect(result.messages).toEqual([
       { content: "We use pnpm for this repository.", role: "user" },
       { content: "Understood, noting the package manager.", role: "assistant" },
+      { content: "ok", role: "user" },
+      { content: "請用繁體", role: "user" },
+      { content: "日本語で", role: "user" },
     ]);
   });
 

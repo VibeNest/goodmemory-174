@@ -48,7 +48,6 @@ const DEFAULT_MAX_BYTES = 262_144;
 const DEFAULT_MAX_MESSAGES = 48;
 // Defensive per-message clamp; MAX_WRITEBACK_MESSAGE_CHARS re-clamps later.
 const MAX_MESSAGE_CHARS = 4_000;
-const MIN_USER_MESSAGE_CHARS = 8;
 // Host-injected wrappers that are not user-authored conversation.
 const NON_CONVERSATIONAL_PREFIXES = [
   "<command-name>",
@@ -215,7 +214,7 @@ function parseUserContent(content: unknown): HostTranscriptMessage | null {
     return null;
   }
   const trimmed = content.trim();
-  if (trimmed.length < MIN_USER_MESSAGE_CHARS) {
+  if (trimmed.length === 0) {
     return null;
   }
   if (NON_CONVERSATIONAL_PREFIXES.some((prefix) => trimmed.startsWith(prefix))) {
@@ -313,8 +312,7 @@ function parseCodexRolloutLine(line: string): HostTranscriptMessage | null {
   }
   if (
     role === "user" &&
-    (text.length < MIN_USER_MESSAGE_CHARS ||
-      CODEX_NON_CONVERSATIONAL_PREFIXES.some((prefix) => text.startsWith(prefix)))
+    CODEX_NON_CONVERSATIONAL_PREFIXES.some((prefix) => text.startsWith(prefix))
   ) {
     return null;
   }

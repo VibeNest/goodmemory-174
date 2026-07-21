@@ -51,6 +51,72 @@ describe("installed host writeback config", () => {
     expect(parsed.config.contextMode).toBe("progressive");
   });
 
+  it("parses a JSON-safe immutable default language config", () => {
+    const parsed = parseInstalledHostRuntimeConfig(
+      {
+        host: "codex",
+        language: {
+          defaultLocale: "zh-tw",
+        },
+        storage: {
+          path: "/tmp/goodmemory.sqlite",
+          provider: "sqlite",
+        },
+        userId: "user-1",
+        version: 1,
+      },
+      "codex",
+    );
+
+    expect(parsed.status).toBe("ok");
+    if (parsed.status !== "ok") {
+      return;
+    }
+
+    expect(parsed.config.language).toEqual({ defaultLocale: "zh-TW" });
+    expect(Object.isFrozen(parsed.config.language)).toBe(true);
+  });
+
+  it("rejects non-serializable or ambiguous installed-host language config", () => {
+    const base = {
+      host: "codex" as const,
+      storage: {
+        path: "/tmp/goodmemory.sqlite",
+        provider: "sqlite" as const,
+      },
+      userId: "user-1",
+      version: 1,
+    };
+
+    expect(
+      parseInstalledHostRuntimeConfig(
+        { ...base, language: { defaultLocale: "ja-JP", packs: [] } },
+        "codex",
+      ),
+    ).toEqual({
+      detail: "language supports only defaultLocale",
+      status: "invalid",
+    });
+    expect(
+      parseInstalledHostRuntimeConfig(
+        { ...base, language: { defaultLocale: "ja-JP", detector: "custom" } },
+        "codex",
+      ),
+    ).toEqual({
+      detail: "language supports only defaultLocale",
+      status: "invalid",
+    });
+    expect(
+      parseInstalledHostRuntimeConfig(
+        { ...base, language: { defaultLocale: " " } },
+        "codex",
+      ),
+    ).toEqual({
+      detail: "language.defaultLocale must be a valid non-empty locale",
+      status: "invalid",
+    });
+  });
+
   it("rejects invalid installed-host context mode", () => {
     const parsed = parseInstalledHostRuntimeConfig(
       {

@@ -26,6 +26,7 @@ async function createWorkspace(prefix: string): Promise<string> {
 async function writeHostConfig(input: {
   allowAssistantOutput?: "confirmed" | "confirmed_or_verified" | "never" | "verified";
   assistedExtractor?: boolean;
+  defaultLocale?: string;
   dryRun?: boolean;
   homeRoot: string;
   maxChars?: number;
@@ -38,6 +39,9 @@ async function writeHostConfig(input: {
       {
         activationMode: "global",
         host: "codex",
+        ...(input.defaultLocale
+          ? { language: { defaultLocale: input.defaultLocale } }
+          : {}),
         maxTokens: 128,
         retrievalProfile: "coding_agent",
         storage: {
@@ -73,7 +77,188 @@ async function writeHostConfig(input: {
   );
 }
 
+function createRememberingMemory(input: {
+  configs?: GoodMemoryConfig[];
+  rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]>;
+}): (config: GoodMemoryConfig) => GoodMemory {
+  return ((config: GoodMemoryConfig) => {
+    input.configs?.push(config);
+    return {
+      jobs: createNoopGoodMemoryJobsFacade(),
+      runtime: createNoopGoodMemoryRuntimeFacade(),
+      async buildContext() {
+        throw new Error("not used");
+      },
+      async recall() {
+        throw new Error("not used");
+      },
+      async remember(rememberInput) {
+        input.rememberCalls.push(rememberInput);
+        return {
+          accepted: 1,
+          events: [],
+          metadata: {
+            analysisMode: "rules-only" as const,
+            languagePackId: "test",
+            locale: "en",
+            localeSource: "default" as const,
+            requestedExtractionStrategy: "rules-only" as const,
+            resolvedExtractionStrategy: "rules-only" as const,
+          },
+          rejected: 0,
+        };
+      },
+      async forget() {
+        throw new Error("not used");
+      },
+      async exportMemory() {
+        throw new Error("not used");
+      },
+      async deleteAllMemory() {
+        throw new Error("not used");
+      },
+      async feedback() {
+        throw new Error("not used");
+      },
+      async reviseMemory() {
+        throw new Error("not used");
+      },
+      async runMaintenance() {
+        throw new Error("not used");
+      },
+    } satisfies GoodMemory;
+  }) as (config: GoodMemoryConfig) => GoodMemory;
+}
+
 describe("installed host writeback runtime", () => {
+  it("uses built-in language packs for providerless Traditional Chinese and Japanese writeback", async () => {
+    const homeRoot = await createWorkspace("goodmemory-writeback-cjk-home-");
+    const workspaceRoot = await createWorkspace("goodmemory-writeback-cjk-workspace-");
+    const configs: GoodMemoryConfig[] = [];
+    const rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]> = [];
+
+    try {
+      await writeHostConfig({
+        defaultLocale: "ja-jp",
+        homeRoot,
+        mode: "selective",
+      });
+
+      const result = await executeInstalledHostWriteback(
+        {
+          command: "session-end",
+          homeRoot,
+          host: "codex",
+          payload: {
+            cwd: workspaceRoot,
+            messages: [
+              { content: "以後請優先使用繁體中文回覆。", role: "user" },
+              { content: "今後は箇条書きを優先してください。", role: "user" },
+            ],
+            session_id: "cjk-session",
+          },
+        },
+        {
+          createMemory: createRememberingMemory({ configs, rememberCalls }),
+        },
+      );
+
+      expect(result).toMatchObject({ reason: "written", wrote: true });
+      expect(result.candidates).toEqual([
+        expect.objectContaining({
+          content: "以後請優先使用繁體中文回覆。",
+          durable: true,
+        }),
+        expect.objectContaining({
+          content: "今後は箇条書きを優先してください。",
+          durable: true,
+        }),
+      ]);
+      expect(rememberCalls.map((call) => call.messages[0]?.content)).toEqual([
+        "以後請優先使用繁體中文回覆。",
+        "今後は箇条書きを優先してください。",
+      ]);
+      expect(
+        rememberCalls.every((call) => call.extractionStrategy === "rules-only"),
+      ).toBe(true);
+      expect(configs[0]?.language).toEqual({ defaultLocale: "ja-JP" });
+      expect(Object.isFrozen(configs[0]?.language)).toBe(true);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("keeps secret-like messages out of assisted extractor input", async () => {
+    const homeRoot = await createWorkspace("goodmemory-writeback-provider-secret-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-writeback-provider-secret-workspace-",
+    );
+    const extractorMessages: Array<Array<{ content: string; role: string }>> = [];
+    const rememberCalls: Array<Parameters<GoodMemory["remember"]>[0]> = [];
+
+    try {
+      await writeHostConfig({ assistedExtractor: true, homeRoot, mode: "selective" });
+
+      const result = await executeInstalledHostWriteback(
+        {
+          command: "session-end",
+          homeRoot,
+          host: "codex",
+          payload: {
+            cwd: workspaceRoot,
+            messages: [
+              {
+                content: "Remember api_key: sk-abcdefghijklmnopqrstuvwx for the bridge.",
+                role: "user",
+              },
+              {
+                content: "Next step is to rotate the bridge credential.",
+                role: "user",
+              },
+            ],
+            session_id: "provider-secret-session",
+          },
+        },
+        {
+          createMemory: createRememberingMemory({ rememberCalls }),
+          createWritebackExtractor: () => ({
+            async extract(extractionInput) {
+              extractorMessages.push(
+                extractionInput.messages.map(({ content, role }) => ({
+                  content,
+                  role,
+                })),
+              );
+              return { candidates: [], ignoredMessageCount: 0 };
+            },
+          }),
+        },
+      );
+
+      expect(result.reason).toBe("written");
+      expect(extractorMessages).toEqual([
+        [
+          {
+            content: "Next step is to rotate the bridge credential.",
+            role: "user",
+          },
+        ],
+      ]);
+      expect(result.candidates).toContainEqual(
+        expect.objectContaining({
+          content: "[redacted secret-like content]",
+          durable: false,
+          reason: "secret_blocked",
+        }),
+      );
+      expect(rememberCalls).toHaveLength(1);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
   it("returns disabled without reading transcript content when writeback is off", async () => {
     const homeRoot = await createWorkspace("goodmemory-writeback-off-home-");
     const workspaceRoot = await createWorkspace("goodmemory-writeback-off-workspace-");
@@ -286,6 +471,72 @@ describe("installed host writeback runtime", () => {
         expect(result.candidates).toEqual([]);
         expect(result.wrote).toBe(false);
       }
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
+  it("preserves English correction and technical-reference candidate semantics through the language pack", async () => {
+    const homeRoot = await createWorkspace("goodmemory-writeback-language-compat-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-writeback-language-compat-workspace-",
+    );
+
+    try {
+      await writeHostConfig({ homeRoot, mode: "observe" });
+      const messages = [
+        "Correction: that approach was wrong.",
+        "Next time use the compact format.",
+        "From now on use bullet points.",
+        "Use docs/README.md for this project.",
+      ];
+      const result = await executeInstalledHostWriteback({
+        command: "turn-end",
+        homeRoot,
+        host: "codex",
+        payload: {
+          cwd: workspaceRoot,
+          messages: messages.map((content) => ({ content, role: "user" })),
+          session_id: "language-compat-session",
+        },
+      });
+
+      expect(result.reason).toBe("observed");
+      expect(result.candidates).toEqual([
+        {
+          confidence: 0.9,
+          content: messages[0],
+          durable: true,
+          kind: "feedback",
+          reason: "procedural_feedback",
+          source: "user",
+        },
+        {
+          confidence: 0.9,
+          content: messages[1],
+          durable: true,
+          kind: "feedback",
+          reason: "procedural_feedback",
+          source: "user",
+        },
+        {
+          confidence: 0.9,
+          content: messages[2],
+          durable: true,
+          kind: "feedback",
+          reason: "procedural_feedback",
+          source: "user",
+        },
+        {
+          confidence: 0.78,
+          content: messages[3],
+          durable: true,
+          kind: "reference",
+          reason: "stable_reference",
+          source: "user",
+        },
+      ]);
     } finally {
       await rm(homeRoot, { force: true, recursive: true });
       await rm(workspaceRoot, { force: true, recursive: true });

@@ -21,6 +21,7 @@ import {
   DEFAULT_INSTALLED_HOST_RETRIEVAL_PROFILE,
   type InstalledHostActivationMode,
   type InstalledHostContextMode,
+  type InstalledHostLanguageConfig,
   type InstalledHostMaintenanceConfig,
   type InstalledHostPromptInjectionMode,
   type InstalledHostProviderConfig,
@@ -54,6 +55,7 @@ export interface InstalledHostResolvedContext {
   contextMode: InstalledHostContextMode;
   debug: boolean;
   host: InstalledHostKind;
+  language?: InstalledHostLanguageConfig;
   maintenance?: InstalledHostMaintenanceConfig;
   maxTokens: number;
   promptInjection?: InstalledHostPromptInjectionMode;
@@ -155,6 +157,9 @@ export async function resolveInstalledHostContext(
         workspaceConfig.contextMode ?? globalConfig.config.contextMode,
       debug: globalConfig.config.debug || workspaceConfig.debug,
       host: input.host,
+      ...(globalConfig.config.language
+        ? { language: globalConfig.config.language }
+        : {}),
       maxTokens:
         input.maxTokens ??
         workspaceConfig.maxTokens ??
@@ -227,6 +232,7 @@ export function createInstalledHostMemory(
       : undefined;
   return (dependencies.createMemory ?? createGoodMemory)({
     ...(adapters ? { adapters } : {}),
+    ...(context.language ? { language: context.language } : {}),
     // 1:1 with GoodMemoryRetrievalConfig; absence keeps rules-only parity.
     ...(context.retrieval ? { retrieval: context.retrieval } : {}),
     remember: {

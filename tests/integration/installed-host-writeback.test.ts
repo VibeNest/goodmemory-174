@@ -19,6 +19,67 @@ async function createWorkspace(prefix: string): Promise<string> {
 }
 
 describe("installed host writeback integration", () => {
+  it("writes providerless Japanese preferences through the built-in pack", async () => {
+    const homeRoot = await createWorkspace("goodmemory-installed-japanese-home-");
+    const workspaceRoot = await createWorkspace(
+      "goodmemory-installed-japanese-workspace-",
+    );
+    const preference = "今後は箇条書きを優先してください。";
+
+    try {
+      await installHost({
+        homeRoot,
+        host: "codex",
+        userId: "japanese-writeback-user",
+        writeback: {
+          allowAssistantOutput: "confirmed_or_verified",
+          dryRun: false,
+          extractionStrategy: "rules-only",
+          maxChars: 12000,
+          maxMessages: 12,
+          minConfidence: 0.7,
+          mode: "selective",
+          persistRawTranscript: false,
+        },
+      });
+      await enableHostWorkspace({
+        homeRoot,
+        host: "codex",
+        workspaceId: "japanese-writeback-workspace",
+        workspaceRoot,
+      });
+
+      const writeback = await executeInstalledHostWriteback({
+        command: "session-end",
+        homeRoot,
+        host: "codex",
+        payload: {
+          cwd: workspaceRoot,
+          messages: [{ content: preference, role: "user" }],
+          session_id: "japanese-writeback-session",
+        },
+      });
+      expect(writeback).toMatchObject({ reason: "written", wrote: true });
+
+      const resolved = await resolveInstalledHostContext({
+        cwd: workspaceRoot,
+        homeRoot,
+        host: "codex",
+      });
+      expect(resolved.status).toBe("ok");
+      if (resolved.status !== "ok") {
+        return;
+      }
+      const exported = await createInstalledHostMemory(resolved.context).exportMemory({
+        scope: resolved.context.scope,
+      });
+      expect(JSON.stringify(exported.durable)).toContain(preference);
+    } finally {
+      await rm(homeRoot, { force: true, recursive: true });
+      await rm(workspaceRoot, { force: true, recursive: true });
+    }
+  });
+
   it("preserves a selected multi-clause project policy as durable memory", async () => {
     const homeRoot = await createWorkspace("goodmemory-installed-policy-home-");
     const workspaceRoot = await createWorkspace(

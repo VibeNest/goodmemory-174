@@ -1,7 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import type { ExportMemoryResult } from "../../src";
+import type { ExportMemoryResult, LanguagePack } from "../../src";
 import {
+  createEnglishLanguagePack,
   createFeedbackMemory,
+  createGoodMemory,
+  createInMemoryDocumentStore,
   createMemorySource,
   createSessionJournal,
   createWorkingMemorySnapshot,
@@ -194,6 +197,205 @@ describe("host pre-action policy", () => {
       kind: "warning",
       message: "run smoke verification",
     });
+  });
+
+  it.each([
+    {
+      expectedPrecondition: "執行 git push 前不要略過驗證。",
+      id: "traditional-chinese",
+      locale: "zh-TW",
+      rule: "執行 git push 前不要略過驗證。",
+    },
+    {
+      expectedPrecondition:
+        "git push を実行する前に、検証せず実行しないでください。",
+      id: "japanese",
+      locale: "ja-JP",
+      rule: "git push を実行する前に、検証せず実行しないでください。",
+    },
+  ])("applies $id negative pre-action policies with localized preconditions", async ({
+    expectedPrecondition,
+    locale,
+    rule,
+  }) => {
+    const source = createMemorySource({
+      extractedAt: "2026-04-22T00:00:00.000Z",
+      locale,
+      localeSource: "explicit",
+      method: "explicit",
+      sessionId: "s-1",
+    });
+    const adapter = createHostAdapter({
+      id: `codex-${locale}`,
+      hostKind: "codex",
+      memory: {
+        async exportMemory() {
+          return createExportResult({
+            feedback: [
+              createFeedbackMemory({
+                appliesTo: "coding_agent",
+                id: `feedback-${locale}`,
+                kind: "validated_pattern",
+                rule,
+                sessionId: "s-1",
+                source,
+                userId: "u-1",
+                workspaceId: "ws-1",
+              }),
+            ],
+          });
+        },
+      },
+    });
+
+    const result = await adapter.assessAction({
+      action: {
+        command: "git push origin main",
+        kind: "command",
+      },
+      actionId: `action-${locale}`,
+      hostKind: "codex",
+      occurredAt: "2026-04-22T00:00:00.000Z",
+      runId: "run-1",
+      scope: {
+        sessionId: "s-1",
+        userId: "u-1",
+        workspaceId: "ws-1",
+      },
+      sequence: 0,
+      turnId: "turn-1",
+    });
+
+    expect(result.decision).toBe("review_required");
+    expect(result.matchedMemoryIds).toEqual([`feedback-${locale}`]);
+    expect(result.requiredPreconditions).toEqual([expectedPrecondition]);
+  });
+
+  it("does not match an unrelated localized policy to a high-risk command", async () => {
+    const source = createMemorySource({
+      extractedAt: "2026-04-22T00:00:00.000Z",
+      locale: "zh-TW",
+      localeSource: "explicit",
+      method: "explicit",
+      sessionId: "s-1",
+    });
+    const adapter = createHostAdapter({
+      id: "codex-unrelated-hant",
+      hostKind: "codex",
+      memory: {
+        async exportMemory() {
+          return createExportResult({
+            feedback: [
+              createFeedbackMemory({
+                appliesTo: "coding_agent",
+                id: "feedback-unrelated-hant",
+                kind: "validated_pattern",
+                rule: "執行 npm publish 前不要略過驗證。",
+                sessionId: "s-1",
+                source,
+                userId: "u-1",
+                workspaceId: "ws-1",
+              }),
+            ],
+          });
+        },
+      },
+    });
+
+    const result = await adapter.assessAction({
+      action: {
+        command: "git push origin main",
+        kind: "command",
+      },
+      actionId: "action-unrelated-hant",
+      hostKind: "codex",
+      occurredAt: "2026-04-22T00:00:00.000Z",
+      runId: "run-1",
+      scope: {
+        sessionId: "s-1",
+        userId: "u-1",
+        workspaceId: "ws-1",
+      },
+      sequence: 0,
+      turnId: "turn-1",
+    });
+
+    expect(result.decision).toBe("allow");
+    expect(result.matchedMemoryIds).toEqual([]);
+    expect(result.requiredPreconditions).toEqual([]);
+  });
+
+  it("reuses the custom language service owned by the GoodMemory instance", async () => {
+    const documentStore = createInMemoryDocumentStore();
+    const english = createEnglishLanguagePack();
+    const customPack = {
+      ...english,
+      analyzerVersion: "host-policy-custom-v1",
+      analyzeContent(text) {
+        return {
+          ...english.analyzeContent(text),
+          feedbackKind: text.includes("sentinel-policy") ? "dont" : "do",
+        };
+      },
+      tokenizeForScoring(text, mode, options) {
+        if (/sentinel-policy|opaque-action/u.test(text)) {
+          return ["custom-shared-token"];
+        }
+        return english.tokenizeForScoring(text, mode, options);
+      },
+    } satisfies LanguagePack;
+    const memory = createGoodMemory({
+      adapters: { documentStore },
+      language: { packs: [customPack] },
+      storage: { provider: "memory" },
+    });
+    const source = createMemorySource({
+      extractedAt: "2026-04-22T00:00:00.000Z",
+      locale: "en",
+      localeSource: "explicit",
+      method: "explicit",
+      sessionId: "s-1",
+    });
+    await documentStore.set(
+      "feedback",
+      "feedback-custom-language",
+      createFeedbackMemory({
+        appliesTo: "coding_agent",
+        id: "feedback-custom-language",
+        kind: "validated_pattern",
+        rule: "sentinel-policy",
+        sessionId: "s-1",
+        source,
+        userId: "u-1",
+        workspaceId: "ws-1",
+      }),
+    );
+    const adapter = createHostAdapter({
+      id: "codex-custom-language",
+      hostKind: "codex",
+      memory,
+    });
+
+    const result = await adapter.assessAction({
+      action: {
+        command: "deploy opaque-action",
+        kind: "command",
+      },
+      actionId: "action-custom-language",
+      hostKind: "codex",
+      occurredAt: "2026-04-22T00:00:00.000Z",
+      runId: "run-1",
+      scope: {
+        sessionId: "s-1",
+        userId: "u-1",
+        workspaceId: "ws-1",
+      },
+      sequence: 0,
+      turnId: "turn-1",
+    });
+
+    expect(result.decision).toBe("review_required");
+    expect(result.matchedMemoryIds).toEqual(["feedback-custom-language"]);
   });
 
   it("rewrites to an executable QuickCheck path when the original command resolves a sibling executable", async () => {

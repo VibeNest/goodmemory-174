@@ -2,12 +2,15 @@ import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import type { GoodMemory } from "../api/contracts";
 import type { MemoryScope } from "../domain/scope";
+import { createLanguageService } from "../language";
+import type { LanguageService } from "../language";
 import type {
   ExtractionOutcome,
   RememberEvent,
 } from "../remember/contracts";
 import type {
   MessageAnnotation,
+  MemoryCandidate,
   MemoryExtractionStrategy,
   MemoryCandidateKindHint,
   MemoryExtractor,
@@ -140,20 +143,6 @@ export interface CandidateWithKey extends InstalledHostWritebackCandidate {
 export const MAX_WRITEBACK_MESSAGE_CHARS = 1_500;
 export const SECRET_PATTERN =
   /\b(api[_-]?key|secret|token|password)\b\s*[:=]|sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9_]{16,}/iu;
-const PREFERENCE_PATTERN =
-  /\b(always|remember to|remember that|prefer|please keep|please use|use .+ instead of|do not use|don't use|never use|以后|不要|不希望|优先)\b/iu;
-const FEEDBACK_PATTERN =
-  /\b(correction|wrong|not right|instead|next time|from now on|that approach was wrong|刚才.*不对|以后先|改成|更正|不要用)\b/iu;
-const OPEN_LOOP_PATTERN =
-  /\b(next step|todo|blocked|blocker|blocking|unresolved|follow up|still need|need to add|卡住|卡点|下一步|待办|阻塞)\b/iu;
-const DECISION_PATTERN =
-  /\b(?:we decided|canonical source of truth|must remain|我们决定|以.+为准|稳定面)\b/iu;
-const POLICY_ACTION_PATTERN =
-  /\b(?:must|shall|uses?|forbids?|allows?|defaults?|represents?|wraps?|leaves?|keeps?|routes?|rejects?|stores?|retains?|removes?|runs?|writes?|reads?|treats?|maps?|converts?|passes?\s+through)\b/iu;
-const POLICY_DECLARATION_PATTERN =
-  /\b(?:the\s+)?(?:project|repository|repo)\s+policy\s*(?:(:|=)\s*([^\n]+)|mandates?\s+that\s+([^\n]+)|is\s+that\s+([^\n]+)|is\s+to\s+([^\n]+))/iu;
-const REFERENCE_PATTERN =
-  /(~\/\.goodmemory|\.goodmemory\/|docs\/|task-board\/|reports\/|scripts\/|src\/|tests\/|README\.md|AGENTS\.md|CLAUDE\.md)/u;
 
 export async function executeInstalledHostWriteback(
   input: InstalledHostWritebackInput,
@@ -261,8 +250,9 @@ async function executeResolvedWriteback(args: {
   }
 
   const durableScope = toDurableWritebackScope(resolved.context.scope);
+  const language = createLanguageService(resolved.context.language);
   // Batch LLM pre-extraction over the whole window (when configured); the
-  // regex rules stay the floor and the union is deduped by candidate key.
+  // language-pack rules stay the floor and the union is deduped by candidate key.
   const batch = await runBatchWritebackExtraction({
     command: input.command,
     config,
@@ -277,6 +267,7 @@ async function executeResolvedWriteback(args: {
       command: input.command,
       config,
       host: input.host,
+      language,
       scope: durableScope,
       messages,
     }),
@@ -925,6 +916,7 @@ function buildWritebackCandidates(input: {
   command: InstalledHostWritebackCommand;
   config: InstalledHostWritebackConfig;
   host: InstalledHostKind;
+  language: LanguageService;
   scope: MemoryScope;
   messages: NormalizedWritebackMessage[];
 }): CandidateWithKey[] {
@@ -933,6 +925,7 @@ function buildWritebackCandidates(input: {
       command: input.command,
       config: input.config,
       host: input.host,
+      language: input.language,
       scope: input.scope,
     }),
   );
@@ -967,7 +960,12 @@ async function runBatchWritebackExtraction(input: {
 }> {
   const strategy = input.config.extractionStrategy ?? "auto";
   const provider = input.context.providers?.assistedExtractor;
-  if (strategy === "rules-only" || !provider || input.messages.length === 0) {
+  const safeMessages = input.messages.filter(
+    (message) =>
+      message.annotation?.remember !== "never" &&
+      !SECRET_PATTERN.test(message.content),
+  );
+  if (strategy === "rules-only" || !provider || safeMessages.length === 0) {
     return { attempted: false, candidates: [], status: "skipped" };
   }
 
@@ -981,7 +979,7 @@ async function runBatchWritebackExtraction(input: {
     config: input.config,
     extractor,
     host: input.host,
-    messages: input.messages.map((message) => ({
+    messages: safeMessages.map((message) => ({
       content: message.content,
       role: message.role,
     })),
@@ -1017,6 +1015,7 @@ function buildMessageCandidate(
     command: InstalledHostWritebackCommand;
     config: InstalledHostWritebackConfig;
     host: InstalledHostKind;
+    language: LanguageService;
     scope: MemoryScope;
   },
 ): CandidateWithKey[] {
@@ -1026,7 +1025,9 @@ function buildMessageCandidate(
 
   const source = message.role === "host_event" ? "host_event" : message.role;
   const secretLike = SECRET_PATTERN.test(message.content);
-  const base = classifyDurableSignal(message);
+  const base = secretLike
+    ? null
+    : classifyDurableSignal(message, runtime.language);
   if (!base && !secretLike) {
     return [];
   }
@@ -1106,8 +1107,8 @@ function buildMessageCandidate(
 
 function classifyDurableSignal(
   message: NormalizedWritebackMessage,
+  language: LanguageService,
 ): { confidence: number; kind: InstalledHostWritebackCandidate["kind"]; reason: string } | null {
-  const content = message.content;
   if (message.annotation?.remember === "always") {
     return {
       confidence: 0.86,
@@ -1115,35 +1116,74 @@ function classifyDurableSignal(
       reason: message.annotation.machineReason ?? "host_annotation",
     };
   }
-  if (FEEDBACK_PATTERN.test(content)) {
+
+  const resolved = language.resolveFromText({ text: message.content });
+  const analysis = language.analyzeContent(message.content, resolved);
+  let candidateCounter = 0;
+  const extracted = language.extractCandidates(
+    {
+      locale: resolved.locale,
+      messages: [{ content: message.content, role: "user", sourceMessageIndex: 0 }],
+      nextId: () => `host-writeback-${++candidateCounter}`,
+    },
+    resolved,
+  );
+
+  if (
+    extracted.some((candidate) =>
+      candidate.metadata?.attributes?.languageDurableSignal ===
+        "procedural_feedback"
+    )
+  ) {
     return {
       confidence: 0.9,
       kind: "feedback",
       reason: "procedural_feedback",
     };
   }
-  if (PREFERENCE_PATTERN.test(content)) {
+  if (analysis.correctionCue && hasDurableLanguageCandidate(extracted)) {
+    return {
+      confidence: 0.9,
+      kind: "feedback",
+      reason: "procedural_feedback",
+    };
+  }
+  if (
+    extracted.some((candidate) => candidate.kindHint === "preference") ||
+    extracted.some((candidate) => candidate.kindHint === "feedback")
+  ) {
     return {
       confidence: 0.88,
       kind: "preference",
       reason: "explicit_preference",
     };
   }
-  if (OPEN_LOOP_PATTERN.test(content)) {
+  if (
+    analysis.blockerFact || analysis.openLoopFact || analysis.unresolved
+  ) {
     return {
       confidence: 0.84,
       kind: "fact",
       reason: "open_loop",
     };
   }
-  if (DECISION_PATTERN.test(content) || isExplicitPolicyDecision(content)) {
+  if (
+    extracted.some((candidate) =>
+      candidate.metadata?.attributes?.languageDurableSignal ===
+        "confirmed_decision"
+    ) ||
+    (analysis.durableCue && !analysis.sourceOfTruthDirective)
+  ) {
     return {
       confidence: 0.82,
       kind: "fact",
       reason: "confirmed_decision",
     };
   }
-  if (REFERENCE_PATTERN.test(content)) {
+  if (
+    analysis.sourceOfTruthDirective ||
+    extracted.some((candidate) => candidate.kindHint === "reference")
+  ) {
     return {
       confidence: 0.78,
       kind: "reference",
@@ -1154,19 +1194,11 @@ function classifyDurableSignal(
   return null;
 }
 
-function isExplicitPolicyDecision(content: string): boolean {
-  const match = POLICY_DECLARATION_PATTERN.exec(content);
-  if (!match) return false;
-  const [, separator, assignedBody, mandatedBody, assertedBody, actionBody] = match;
-  if (separator || mandatedBody) {
-    return POLICY_ACTION_PATTERN.test(assignedBody ?? mandatedBody ?? "");
-  }
-  if (assertedBody) {
-    return /^(?:we|the\s+(?:project|repository|repo)|this\s+(?:project|repository|repo))\s+(?:must|shall|uses?|forbids?|allows?|defaults?|represents?|wraps?|leaves?|keeps?|routes?|rejects?|stores?|retains?|removes?|runs?|writes?|reads?|treats?|maps?|converts?)\b/iu
-      .test(assertedBody.trim());
-  }
-  return /^(?:use|forbid|allow|default|represent|wrap|leave|keep|route|reject|store|retain|remove|run|write|read|treat|map|convert|pass\s+through)\b/iu
-    .test(actionBody?.trim() ?? "");
+function hasDurableLanguageCandidate(candidates: MemoryCandidate[]): boolean {
+  return candidates.some(
+    (candidate) =>
+      candidate.kindHint !== "episode" && candidate.kindHint !== "noise",
+  );
 }
 
 export function isAssistantOutputAllowed(

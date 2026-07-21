@@ -22,6 +22,7 @@ import {
   createExperienceRecord,
   EXPERIENCES_COLLECTION,
 } from "../evolution/contracts";
+import { createLanguageService } from "../language";
 import { toPolicyMemoryRecord } from "../policy/hooks";
 import type {
   CreateHostAdapterInput,
@@ -1232,6 +1233,9 @@ export function createHostAdapter(input: CreateHostAdapterInput): HostAdapter {
   const mode = input.mode ?? "file-assisted";
   const now = input.now ?? (() => new Date().toISOString());
   const createId = input.createId ?? (() => crypto.randomUUID());
+  const language =
+    readGoodMemoryIntegrationSupport(input.memory as GoodMemory)?.language ??
+    createLanguageService();
 
   if (input.id.trim().length === 0) {
     throw new Error("host adapter id must not be empty");
@@ -1273,6 +1277,7 @@ export function createHostAdapter(input: CreateHostAdapterInput): HostAdapter {
       const assessment = assessHostAction({
         exported,
         intent,
+        language,
       });
       const audit = await maybeRecordActionAssessment({
         assessment,

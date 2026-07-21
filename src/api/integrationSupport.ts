@@ -2,6 +2,7 @@ import type { AgentInputEvent, HostAgentEvent } from "../agentEvents";
 import type { FeedbackKind } from "../domain/records";
 import type { MemoryScope } from "../domain/scope";
 import type { HostActionDecision, HostKind } from "../domain/hostTypes";
+import type { LanguageService } from "../language";
 import type {
   FeedbackPromotionReceipt,
   FeedbackProposalReceipt,
@@ -81,6 +82,7 @@ export interface HostActionAssessmentRecordResult {
 }
 
 export interface GoodMemoryIntegrationSupport {
+  readonly language: LanguageService;
   ingestAgentInputEvent(
     input: { event: AgentInputEvent },
   ): Promise<AgentEventIngestResult>;

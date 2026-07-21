@@ -213,6 +213,12 @@ describe("language service", () => {
       "zh-Hans",
       "zh-Hant",
     ]);
+    expect(manifest.packs.find(({ id }) => id === "en")).toMatchObject({
+      analyzerVersion: "4",
+      apiVersion: 1,
+      compatibilityGroup: "en",
+      defaultLocale: "en-US",
+    });
     expect(
       manifest.packs.find(({ id }) => id === "zh-Hant"),
     ).toMatchObject({

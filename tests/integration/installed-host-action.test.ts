@@ -92,6 +92,7 @@ async function createSqliteMemory(sqlitePath: string) {
 async function seedPolicy(input: {
   documentStore: ReturnType<typeof createSQLiteDocumentStore>;
   evidenceExcerpt: string;
+  locale?: string;
   rule: string;
   sessionId: string;
   why?: string;
@@ -100,6 +101,9 @@ async function seedPolicy(input: {
     method: "explicit",
     extractedAt: "2026-04-25T00:00:00.000Z",
     sessionId: input.sessionId,
+    ...(input.locale
+      ? { locale: input.locale, localeSource: "explicit" as const }
+      : {}),
   });
 
   await input.documentStore.set(
@@ -286,6 +290,66 @@ describe("installed host action integration", () => {
       });
       expect(exported.durable.experiences.length).toBeGreaterThan(0);
       expect(exported.durable.evidence.length).toBe(0);
+    } finally {
+      await home.cleanup();
+      await workspace.cleanup();
+    }
+  });
+
+  it("applies a Japanese pre-action policy through the installed action bridge", async () => {
+    const home = await createTempWorkspace("goodmemory-installed-ja-action-home");
+    const workspace = await createTempWorkspace("goodmemory-installed-ja-action-workspace");
+    const sqlitePath = join(home.root, ".goodmemory/memory.sqlite");
+
+    try {
+      await writeInstalledCodexConfig({
+        homeRoot: home.root,
+        sqlitePath,
+        workspaceId: "workspace-a",
+        workspaceRoot: workspace.root,
+      });
+      const { documentStore } = await createSqliteMemory(sqlitePath);
+      const rule =
+        "git push を実行する前に、検証せず実行しないでください。";
+      await seedPolicy({
+        documentStore,
+        evidenceExcerpt: rule,
+        locale: "ja-JP",
+        rule,
+        sessionId: "action-session-ja",
+      });
+
+      let invoked = false;
+      const result = await executeInstalledHostAction(
+        {
+          command: "git push origin main",
+          cwd: workspace.root,
+          homeRoot: home.root,
+          host: "codex",
+          sessionId: "action-session-ja",
+          turnId: "turn-ja",
+        },
+        {
+          runCommand: async () => {
+            invoked = true;
+            return {
+              exitCode: 0,
+              stderr: "",
+              stdout: "",
+            };
+          },
+        },
+      );
+
+      expect(invoked).toBe(false);
+      expect(result.exitCode).toBe(2);
+      expect(result.payload).toMatchObject({
+        decision: "review_required",
+        executed: false,
+        guidance: [rule],
+        originalAction: "git push origin main",
+        recommendedFirstStep: rule,
+      });
     } finally {
       await home.cleanup();
       await workspace.cleanup();

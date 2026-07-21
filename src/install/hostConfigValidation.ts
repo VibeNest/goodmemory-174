@@ -6,6 +6,7 @@ export interface InstalledHostRuntimeConfig {
   activationMode: InstalledHostActivationMode;
   contextMode: InstalledHostContextMode;
   debug: boolean;
+  language?: InstalledHostLanguageConfig;
   maxTokens: number;
   // Opt-in exposure of the goodmemory_remember write tool on the installed
   // MCP surface; absent → read-only tools (today's behavior).
@@ -39,6 +40,10 @@ export type InstalledHostPromptInjectionMode = "always" | "relevance_gated";
 
 export interface InstalledHostMcpConfig {
   allowWrite: boolean;
+}
+
+export interface InstalledHostLanguageConfig {
+  readonly defaultLocale: string;
 }
 
 export interface InstalledHostMaintenanceConfig {
@@ -260,6 +265,11 @@ export function parseInstalledHostRuntimeConfig(
     return { detail: "userId must be a non-empty string", status: "invalid" };
   }
 
+  const language = readInstalledHostLanguageConfig(parsed.language);
+  if (language.status === "invalid") {
+    return language;
+  }
+
   const providers = readInstalledHostProviders(parsed.providers);
   if (providers.status === "invalid") {
     return {
@@ -345,6 +355,7 @@ export function parseInstalledHostRuntimeConfig(
       activationMode,
       contextMode,
       debug: parsed.debug === true,
+      ...(language.config ? { language: language.config } : {}),
       maxTokens,
       ...(isRecord(parsed.mcp)
         ? { mcp: { allowWrite: parsed.mcp.allowWrite === true } }
@@ -367,6 +378,42 @@ export function parseInstalledHostRuntimeConfig(
       writeback: writeback.config,
     },
   };
+}
+
+function readInstalledHostLanguageConfig(
+  value: unknown,
+):
+  | { config?: InstalledHostLanguageConfig; status: "ok" }
+  | { detail: string; status: "invalid" } {
+  if (value === undefined) {
+    return { status: "ok" };
+  }
+  if (!isRecord(value)) {
+    return { detail: "language must be a JSON object", status: "invalid" };
+  }
+  if (Object.keys(value).some((key) => key !== "defaultLocale")) {
+    return { detail: "language supports only defaultLocale", status: "invalid" };
+  }
+  const rawLocale = normalizeText(
+    typeof value.defaultLocale === "string" ? value.defaultLocale : undefined,
+  );
+  if (!rawLocale) {
+    return {
+      detail: "language.defaultLocale must be a valid non-empty locale",
+      status: "invalid",
+    };
+  }
+  try {
+    return {
+      config: Object.freeze({ defaultLocale: new Intl.Locale(rawLocale).toString() }),
+      status: "ok",
+    };
+  } catch {
+    return {
+      detail: "language.defaultLocale must be a valid non-empty locale",
+      status: "invalid",
+    };
+  }
 }
 
 function readActivationMode(

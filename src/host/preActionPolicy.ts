@@ -8,10 +8,15 @@ import {
 import type { EvidenceRecord } from "../evidence/contracts";
 import {
   behavioralPolicyActionSatisfiesCanonical,
+  deriveRuleBehavioralPolicy,
   type BehavioralPolicyAction,
   readBehavioralPolicyFromFeedbackMemory,
   selectBehavioralPolicies,
 } from "../evolution/behavioralPolicy";
+import type {
+  LanguageService,
+  ResolvedLanguageContext,
+} from "../language";
 import type {
   HostActionAssessmentResult,
   HostActionIntent,
@@ -20,44 +25,6 @@ import type {
 } from "./contracts";
 
 const HOST_PRE_ACTION_POLICY_PREFIX = "host_pre_action_policy";
-const ACTION_STOP_WORDS = new Set([
-  "a",
-  "an",
-  "and",
-  "before",
-  "by",
-  "for",
-  "from",
-  "in",
-  "into",
-  "is",
-  "of",
-  "on",
-  "or",
-  "the",
-  "then",
-  "to",
-  "with",
-]);
-const NEGATIVE_POLICY_MARKERS = [
-  "avoid",
-  "blocked",
-  "do not",
-  "don't",
-  "must not",
-  "never",
-  "risk",
-];
-const PRECONDITION_MARKERS = [
-  "before",
-  "first",
-  "precondition",
-  "prerequisite",
-  "review",
-  "run smoke",
-  "smoke verification",
-  "verify",
-];
 const HIGH_RISK_COMMAND_MARKERS = [
   "deepanalyzer",
   "deploy",
@@ -87,6 +54,7 @@ const EVIDENCE_PRIORITY: Record<EvidenceRecord["kind"], number> = {
 };
 
 interface MatchedPattern {
+  languageContext: ResolvedLanguageContext;
   linkedEvidenceIds: string[];
   pattern: FeedbackMemory;
   score: number;
@@ -94,6 +62,7 @@ interface MatchedPattern {
 
 interface MatchedEvidence {
   evidence: EvidenceRecord;
+  languageContext: ResolvedLanguageContext;
   score: number;
 }
 
@@ -101,6 +70,11 @@ interface MatchedTypedBehavioralPolicy {
   feedback: FeedbackMemory;
   policy: NonNullable<ReturnType<typeof readBehavioralPolicyFromFeedbackMemory>>;
   score: number;
+}
+
+interface LanguageBoundText {
+  languageContext: ResolvedLanguageContext;
+  text: string;
 }
 
 function uniqueStrings(values: Iterable<string | undefined>): string[] {
@@ -128,29 +102,30 @@ function normalizeForMatch(value: string | undefined): string {
   return value?.trim().toLowerCase() ?? "";
 }
 
-function tokenize(value: string): string[] {
-  return value
-    .toLowerCase()
-    .split(/[^a-z0-9_.-]+/u)
-    .map((token) => token.trim())
-    .filter((token) => token.length >= 3 && !ACTION_STOP_WORDS.has(token));
-}
-
-function countTokenOverlap(left: string, right: string): number {
+function countTokenOverlap(
+  language: LanguageService,
+  languageContext: ResolvedLanguageContext,
+  left: string,
+  right: string,
+): number {
   if (left.length === 0 || right.length === 0) {
     return 0;
   }
 
-  const rightTokens = new Set(tokenize(right));
-  let matches = 0;
+  return language.tokenOverlap(left, right, languageContext, {
+    excludeStopwords: true,
+  });
+}
 
-  for (const token of tokenize(left)) {
-    if (rightTokens.has(token)) {
-      matches += 1;
-    }
-  }
-
-  return matches;
+function resolveRecordLanguage(
+  language: LanguageService,
+  text: string,
+  locale?: string,
+): ResolvedLanguageContext {
+  return language.resolveFromText({
+    ...(locale ? { locale } : {}),
+    text,
+  });
 }
 
 function describeAction(action: HostPlannedAction): string {
@@ -224,24 +199,45 @@ function matchPatterns(
   exported: ExportMemoryResult,
   intent: HostActionIntent,
   actionText: string,
+  language: LanguageService,
 ): MatchedPattern[] {
-  const normalizedActionText = normalizeForMatch(actionText);
-
   return exported.durable.feedback
     .filter((record) => isActiveValidatedPattern(record) && appliesToCodingAgent(record))
     .map((pattern) => {
       const searchableRule = [pattern.rule, pattern.why].filter(Boolean).join(" ");
-      const overlap = countTokenOverlap(searchableRule, actionText);
-      const actionSummary = buildHostPlannedActionSummary(intent.action).toLowerCase();
+      const languageContext = resolveRecordLanguage(
+        language,
+        searchableRule,
+        pattern.source.locale,
+      );
+      const overlap = countTokenOverlap(
+        language,
+        languageContext,
+        searchableRule,
+        actionText,
+      );
+      const normalizedRule = language.normalizeForEquality(
+        searchableRule,
+        languageContext,
+      );
+      const actionSummary = language.normalizeForEquality(
+        buildHostPlannedActionSummary(intent.action),
+        languageContext,
+      );
+      const normalizedActionText = language.normalizeForEquality(
+        actionText,
+        languageContext,
+      );
       const directMarkerMatch = overlap > 0
-        || normalizeForMatch(searchableRule).includes(actionSummary)
-        || normalizeForMatch(searchableRule).includes(normalizedActionText);
+        || normalizedRule.includes(actionSummary)
+        || normalizedRule.includes(normalizedActionText);
 
       if (!directMarkerMatch) {
         return null;
       }
 
       return {
+        languageContext,
         pattern,
         linkedEvidenceIds: collectLinkedEvidenceIds(exported, pattern.id),
         score: overlap + (pattern.why ? 1 : 0) + Math.round(pattern.confidence),
@@ -254,16 +250,28 @@ function matchPatterns(
 function matchEvidence(
   exported: ExportMemoryResult,
   actionText: string,
+  language: LanguageService,
 ): MatchedEvidence[] {
   return exported.durable.evidence
     .map((evidence) => {
-      const overlap = countTokenOverlap(evidence.excerpt, actionText);
+      const languageContext = resolveRecordLanguage(
+        language,
+        evidence.excerpt,
+        evidence.source.locale,
+      );
+      const overlap = countTokenOverlap(
+        language,
+        languageContext,
+        evidence.excerpt,
+        actionText,
+      );
       if (overlap === 0) {
         return null;
       }
 
       return {
         evidence,
+        languageContext,
         score: overlap + EVIDENCE_PRIORITY[evidence.kind],
       } satisfies MatchedEvidence;
     })
@@ -285,50 +293,62 @@ function isHighRiskAction(action: HostPlannedAction): boolean {
   return HIGH_RISK_COMMAND_MARKERS.some((marker) => normalized.includes(marker));
 }
 
-function hasNegativeMarker(value: string): boolean {
-  const normalized = normalizeForMatch(value);
-  return NEGATIVE_POLICY_MARKERS.some((marker) => normalized.includes(marker));
+function hasNegativeSignal(
+  value: LanguageBoundText,
+  language: LanguageService,
+): boolean {
+  const analysis = language.analyzeContent(
+    value.text,
+    value.languageContext,
+  );
+  return analysis.feedbackKind === "dont" || analysis.factPolarity === "negative";
 }
 
-function extractPreconditions(values: readonly string[]): string[] {
+function normalizeProtocolPrecondition(sentence: string): string {
+  const normalized = normalizeForMatch(sentence);
+  if (normalized.includes("smoke")) {
+    return "run smoke verification";
+  }
+  if (normalized.includes("quickcheck")) {
+    return "run QuickCheck first";
+  }
+  return sentence;
+}
+
+function deriveStructuredQuickCheckPrecondition(value: string): string | undefined {
+  const policy = deriveRuleBehavioralPolicy({
+    appliesTo: "coding_agent",
+    kind: "do",
+    rule: value,
+  });
+  const canonicalFirstAction = policy.enactmentSurface === "host_action"
+    ? policy.applicability.canonicalFirstAction
+    : undefined;
+  return normalizeForMatch(canonicalFirstAction?.name) === "quickcheck"
+    ? "run QuickCheck first"
+    : undefined;
+}
+
+function extractPreconditions(
+  values: readonly LanguageBoundText[],
+  language: LanguageService,
+): string[] {
   const preconditions: string[] = [];
 
   for (const value of values) {
-    const normalized = normalizeForMatch(value);
-    if (!PRECONDITION_MARKERS.some((marker) => normalized.includes(marker))) {
-      continue;
-    }
-
-    if (normalized.includes("smoke")) {
-      preconditions.push("run smoke verification");
-      continue;
-    }
-
-    if (normalized.includes("quickcheck")) {
-      preconditions.push("run QuickCheck first");
-      continue;
-    }
-
-    if (normalized.includes("playbook") || normalized.includes("runbook")) {
-      preconditions.push("read the current playbook or runbook");
-      continue;
-    }
-
-    if (normalized.includes("verify")) {
-      preconditions.push("run verification first");
-      continue;
-    }
-
-    const sentence = value
-      .split(/[.!?]/u)
-      .map((segment) => segment.trim())
+    const sentence = language
+      .splitSentences(value.text, value.languageContext)
       .find((segment) =>
-        PRECONDITION_MARKERS.some((marker) =>
-          normalizeForMatch(segment).includes(marker)
-        )
+        language.analyzeQuery(segment, value.languageContext).before
       );
     if (sentence) {
-      preconditions.push(sentence);
+      preconditions.push(normalizeProtocolPrecondition(sentence));
+      continue;
+    }
+
+    const structuredQuickCheck = deriveStructuredQuickCheckPrecondition(value.text);
+    if (structuredQuickCheck) {
+      preconditions.push(structuredQuickCheck);
     }
   }
 
@@ -472,6 +492,7 @@ function matchTypedBehavioralPolicies(
   exported: ExportMemoryResult,
   intent: HostActionIntent,
   actionText: string,
+  language: LanguageService,
 ): MatchedTypedBehavioralPolicy[] {
   const selections = selectBehavioralPolicies({
     appliesTo: "coding_agent",
@@ -482,22 +503,39 @@ function matchTypedBehavioralPolicies(
   const currentAction = toBehavioralPolicyAction(intent.action);
 
   return selections
-    .filter((selection) => {
+    .map((selection) => {
       const searchableRule = [selection.feedback.rule, selection.feedback.why]
         .filter(Boolean)
         .join(" ");
-      const overlap = countTokenOverlap(searchableRule, actionText);
+      const languageContext = resolveRecordLanguage(
+        language,
+        searchableRule,
+        selection.feedback.source.locale,
+      );
+      const overlap = countTokenOverlap(
+        language,
+        languageContext,
+        searchableRule,
+        actionText,
+      );
       const canonicalAction = selection.policy.applicability.canonicalFirstAction;
       const canonicalNameMatch =
         canonicalAction &&
         normalizeForMatch(canonicalAction.name) === normalizeForMatch(currentAction.name);
-      return selection.matchedQueryTokens.length > 0 || overlap > 0 || Boolean(canonicalNameMatch);
+      if (
+        selection.matchedQueryTokens.length === 0 &&
+        overlap === 0 &&
+        !canonicalNameMatch
+      ) {
+        return null;
+      }
+      return {
+        feedback: selection.feedback,
+        policy: selection.policy,
+        score: selection.score + overlap,
+      } satisfies MatchedTypedBehavioralPolicy;
     })
-    .map((selection) => ({
-      feedback: selection.feedback,
-      policy: selection.policy,
-      score: selection.score,
-    }))
+    .filter((record): record is MatchedTypedBehavioralPolicy => Boolean(record))
     .sort((left, right) => right.score - left.score);
 }
 
@@ -566,15 +604,26 @@ function shouldBlockIrrecoverably(action: HostPlannedAction): boolean {
 export function assessHostAction(input: {
   exported: ExportMemoryResult;
   intent: HostActionIntent;
+  language: LanguageService;
 }): HostActionAssessmentResult {
   const actionText = describeAction(input.intent.action);
   const typedPolicies = matchTypedBehavioralPolicies(
     input.exported,
     input.intent,
     actionText,
+    input.language,
   );
-  const matchedPatterns = matchPatterns(input.exported, input.intent, actionText);
-  const matchedEvidence = matchEvidence(input.exported, actionText);
+  const matchedPatterns = matchPatterns(
+    input.exported,
+    input.intent,
+    actionText,
+    input.language,
+  );
+  const matchedEvidence = matchEvidence(
+    input.exported,
+    actionText,
+    input.language,
+  );
   const matchedMemoryIds = uniqueStrings(
     [
       ...typedPolicies.map((record) => record.feedback.id),
@@ -586,23 +635,33 @@ export function assessHostAction(input: {
     ...matchedPatterns.flatMap((record) => record.linkedEvidenceIds),
     ...matchedEvidence.map((record) => record.evidence.id),
   ]);
-  const patternTexts = matchedPatterns.flatMap((record) =>
+  const patternTexts: LanguageBoundText[] = matchedPatterns.flatMap((record) =>
     [record.pattern.rule, record.pattern.why].filter(
       (text): text is string => Boolean(text),
-    )
+    ).map((text) => ({
+      languageContext: record.languageContext,
+      text,
+    }))
   );
-  const evidenceTexts = matchedEvidence.map((record) => record.evidence.excerpt);
-  const requiredPreconditions = extractPreconditions([...patternTexts, ...evidenceTexts]);
+  const evidenceTexts: LanguageBoundText[] = matchedEvidence.map((record) => ({
+    languageContext: record.languageContext,
+    text: record.evidence.excerpt,
+  }));
+  const policyTexts = [...patternTexts, ...evidenceTexts];
+  const requiredPreconditions = extractPreconditions(policyTexts, input.language);
   const runtimeGuidance = resolveRuntimeGuidance({
     action: input.intent.action,
     journal: input.exported.runtime?.journal,
     workingMemory: input.exported.runtime?.workingMemory,
   });
-  const guidance = uniqueStrings([...patternTexts, ...runtimeGuidance]).slice(0, 4);
+  const guidance = uniqueStrings([
+    ...patternTexts.map(({ text }) => text),
+    ...runtimeGuidance,
+  ]).slice(0, 4);
   const highRisk = isHighRiskAction(input.intent.action);
   const memoryBacked = matchedMemoryIds.length > 0 || matchedEvidenceIds.length > 0;
-  const negativeSignal = [...patternTexts, ...evidenceTexts].some((text) =>
-    hasNegativeMarker(text)
+  const negativeSignal = policyTexts.some((text) =>
+    hasNegativeSignal(text, input.language)
   );
 
   let decision: HostActionAssessmentResult["decision"] = "allow";

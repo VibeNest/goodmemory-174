@@ -1921,6 +1921,7 @@ export function createInternalGoodMemory(
     Exclude<GoodMemoryEvalSupport["recordBehavioralOutcome"], undefined>
   >[0];
   const integrationSupport: GoodMemoryIntegrationSupport = {
+    language: implWithInternals.language,
     ingestAgentInputEvent: ({ event }) =>
       createAgentEventIngestor({
         documentStore: implWithInternals.documentStore,

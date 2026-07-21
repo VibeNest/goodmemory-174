@@ -117,6 +117,8 @@ const PROFESSIONAL_FIELD_PATTERN =
 const RESEARCH_ARTICLE_INTEREST_PATTERN =
   /\bi(?:'d| would)\s+like\s+to\s+explore\s+some\s+more\s+research papers and articles\s+on\s+(?:the\s+topic\s+of\s+)?([^,.!?]+?)(?=[,.!?]|$)/i;
 const EXPLICIT_FACT_PATTERN = /remember (?:that|this)\s+(.+)/i;
+const EXPLICIT_DECISION_PATTERN =
+  /\b(?:we decided|canonical source of truth|must remain)\b/i;
 const FOLLOW_UP_OPEN_LOOP_PATTERN =
   /\bstill\s+have\s+an?\s+open\s+loop\s+on\s+(.+?)(?=\.|$)/i;
 const PREFERENCE_PATTERN = /i prefer\s+(.+?)(?:\.|$)/i;
@@ -124,12 +126,20 @@ const REFERENCE_PATTERN =
   /use\s+([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)\s+as the source of truth/i;
 const CORRECTED_REFERENCE_PATTERN =
   /(?:correction:\s*)?([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)\s+is now the source of truth,\s*not\s+([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)/i;
+const CORRECTIVE_FEEDBACK_PATTERN =
+  /\b(?:correction|wrong|not right|instead|next time|from now on|that approach was wrong)\b/i;
 const PROCEDURAL_FEEDBACK_PATTERN =
   /^(?:always|never|don't|do not|prefer)\b|^please\s+(?:keep|make|give|use|avoid|prioritize|format|structure|focus|be|continue|answer|reply)\b/i;
 const ONE_OFF_POLITE_REQUEST_PATTERN =
   /^(?:could|can|would)\s+you\s+please\b/i;
 const ROLEPLAY_RESPONSE_REQUEST_PATTERN =
   /^please\s+respond\s+as\s+(?:the\s+)?user\b/i;
+const PROJECT_POLICY_ACTION_PATTERN =
+  /\b(?:must|shall|uses?|forbids?|allows?|defaults?|represents?|wraps?|leaves?|keeps?|routes?|rejects?|stores?|retains?|removes?|runs?|writes?|reads?|treats?|maps?|converts?|passes?\s+through)\b/iu;
+const PROJECT_POLICY_DECLARATION_PATTERN =
+  /\b(?:the\s+)?(?:project|repository|repo)\s+policy\s*(?:(:|=)\s*([^\n]+)|mandates?\s+that\s+([^\n]+)|is\s+that\s+([^\n]+)|is\s+to\s+([^\n]+))/iu;
+const TECHNICAL_REFERENCE_PATTERN =
+  /(~\/\.goodmemory(?:\/[A-Za-z0-9_./-]+)?|\.goodmemory\/[A-Za-z0-9_./-]*|(?:docs|task-board|reports|scripts|src|tests)\/[A-Za-z0-9_./-]*|(?:README|AGENTS|CLAUDE)\.md)/u;
 const DURABLE_INFERENCE_PATTERNS = [
   /\b(currently|still|blocked|failing|working on|responsible for)\b/i,
   /\b(workflows?|migrations?|production|prod|projects?|roadmaps?|deadlines?|launch(?:es)?)\b/i,
@@ -480,6 +490,25 @@ function extractReferenceSubject(content: string): string | undefined {
 
 function looksLikeDurableInferredFact(content: string): boolean {
   return DURABLE_INFERENCE_PATTERNS.some((pattern) => pattern.test(content));
+}
+
+function isExplicitProjectPolicyDecision(content: string): boolean {
+  const match = PROJECT_POLICY_DECLARATION_PATTERN.exec(content);
+  if (!match) {
+    return false;
+  }
+  const [, separator, assignedBody, mandatedBody, assertedBody, actionBody] = match;
+  if (separator || mandatedBody) {
+    return PROJECT_POLICY_ACTION_PATTERN.test(assignedBody ?? mandatedBody ?? "");
+  }
+  if (assertedBody) {
+    return /^(?:we|the\s+(?:project|repository|repo)|this\s+(?:project|repository|repo))\s+(?:must|shall|uses?|forbids?|allows?|defaults?|represents?|wraps?|leaves?|keeps?|routes?|rejects?|stores?|retains?|removes?|runs?|writes?|reads?|treats?|maps?|converts?)\b/iu.test(
+      assertedBody.trim(),
+    );
+  }
+  return /^(?:use|forbid|allow|default|represent|wrap|leave|keep|route|reject|store|retain|remove|run|write|read|treat|map|convert|pass\s+through)\b/iu.test(
+    actionBody?.trim() ?? "",
+  );
 }
 
 function createProfileCandidate(
@@ -1316,6 +1345,22 @@ function maybeExtractCandidatesFromClause(
     }
   }
 
+  if (EXPLICIT_DECISION_PATTERN.test(trimmed)) {
+    candidates.push(
+      createFactCandidate(index, nextId, trimmed, "project", {
+        attributes: { languageDurableSignal: "confirmed_decision" },
+      }),
+    );
+  }
+
+  if (isExplicitProjectPolicyDecision(trimmed)) {
+    candidates.push(
+      createFactCandidate(index, nextId, trimmed, "project", {
+        attributes: { languageDurableSignal: "confirmed_decision" },
+      }),
+    );
+  }
+
   const followUpOpenLoopMatch = trimmed.match(FOLLOW_UP_OPEN_LOOP_PATTERN);
   const openLoop = followUpOpenLoopMatch
     ? cleanExtractedValue(followUpOpenLoopMatch[1]!)
@@ -1369,6 +1414,25 @@ function maybeExtractCandidatesFromClause(
     });
   }
 
+  const technicalReferenceMatch = trimmed.match(TECHNICAL_REFERENCE_PATTERN);
+  if (technicalReferenceMatch?.[1]) {
+    const pointer = technicalReferenceMatch[1];
+    candidates.push({
+      id: nextId(),
+      kindHint: "reference",
+      explicitness: "explicit",
+      content: pointer,
+      sourceMessageIndex: index,
+      sourceRole: "user",
+      metadata: {
+        referenceKind: deriveReferenceKind(trimmed, pointer),
+        referenceTitle: pointer.split("/").at(-1) ?? pointer,
+        referencePointer: pointer,
+        subject: extractReferenceSubject(trimmed) ?? "unknown",
+      },
+    });
+  }
+
   const correctedReferenceMatch = trimmed.match(CORRECTED_REFERENCE_PATTERN);
   if (correctedReferenceMatch) {
     const pointer = correctedReferenceMatch[1]!.trim();
@@ -1392,7 +1456,8 @@ function maybeExtractCandidatesFromClause(
     });
   }
 
-  if (looksLikeProceduralFeedback(trimmed)) {
+  const correctiveFeedback = CORRECTIVE_FEEDBACK_PATTERN.test(trimmed);
+  if (correctiveFeedback || looksLikeProceduralFeedback(trimmed)) {
     candidates.push({
       id: nextId(),
       kindHint: "feedback",
@@ -1403,6 +1468,9 @@ function maybeExtractCandidatesFromClause(
       metadata: {
         feedbackKind: deriveFeedbackKind(trimmed),
         appliesTo: "general_response",
+        ...(correctiveFeedback
+          ? { attributes: { languageDurableSignal: "procedural_feedback" } }
+          : {}),
       },
     });
   }
@@ -1516,7 +1584,7 @@ function maybeExtractCrossClauseCandidatesFromMessage(
 
 export function createEnglishLanguagePack(): LanguagePack {
   return {
-    analyzerVersion: "3",
+    analyzerVersion: "4",
     apiVersion: 1,
     compatibilityGroup: "en",
     defaultLocale: "en-US",

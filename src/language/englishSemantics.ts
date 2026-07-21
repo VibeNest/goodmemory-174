@@ -64,7 +64,7 @@ const CONTENT = {
   blockerFact: /\bblocker\b|\bblocked\b|\bblocking\b|\bapproval\b/i,
   correctionCue:
     /\b(?:correction|replace|replaced|supersede|superseded|instead of|use .+ as the source of truth|not .+ source of truth)\b/i,
-  dont: /\b(don't|do not)\b/i,
+  dont: /\b(avoid|don't|do not|must not|never)\b/i,
   durableCue:
     /\b(?:remember that|source of truth|runbook|current blocker|blocked|blocking|prefer|please keep|my current role|my role|my timezone|preferred language|current focus|current project|use .+ instead of|instead of)\b/i,
   focusFact:
